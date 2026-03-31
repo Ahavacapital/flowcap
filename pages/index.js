@@ -4,7 +4,7 @@ export default function Home() {
       <style>{`
         *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
         :root{--bg:#0a0c0f;--bg2:#111318;--bg3:#181c23;--bg4:#1e2330;--border:#ffffff0f;--border2:#ffffff18;--border3:#ffffff28;--text:#e8eaf0;--text2:#8b90a0;--text3:#555a6a;--accent:#3b82f6;--accent2:#6366f1;--green:#10b981;--amber:#f59e0b;--red:#ef4444;--purple:#a78bfa;--teal:#14b8a6;--font:'DM Sans',sans-serif;--mono:'DM Mono',monospace;--serif:'Playfair Display',serif;--radius:10px;--radius-lg:16px;--radius-xl:24px;}
-        html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}
+        html,body,#app{height:100%;width:100%;background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}
         #app{height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px}
         .lmark{font-family:Georgia,serif;font-size:36px;color:var(--text)}.lmark span{color:var(--accent)}
         .lsub{font-size:12px;color:var(--text3);letter-spacing:2px;text-transform:uppercase}
