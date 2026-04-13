@@ -23,14 +23,40 @@ export default async function handler(req, res) {
 
     const gmail = google.gmail({ version: 'v1', auth: oauth2Client })
 
+    // Only pull from INBOX, unread, not promotions/social/updates
+    const query = `is:unread in:inbox to:${process.env.GMAIL_USER_EMAIL} -category:promotions -category:social -category:updates`
+
     const { data: listData } = await gmail.users.messages.list({
       userId: 'me',
-      q: `is:unread to:${process.env.GMAIL_USER_EMAIL}`,
+      q: query,
       maxResults: 20,
     })
 
     const messages = listData.messages || []
     const results = []
+
+    // Emails to always skip
+    const skipDomains = [
+      'canva.com', 'streak.com', 'linkedin.com', 'google.com',
+      'facebook.com', 'twitter.com', 'instagram.com', 'youtube.com',
+      'notifications', 'noreply', 'no-reply', 'donotreply',
+      'mailchimp.com', 'constantcontact.com', 'sendgrid.net'
+    ]
+
+    const skipSubjectWords = [
+      'unsubscribe', 'newsletter', 'your account', 'verify your',
+      'password', 'invoice', 'receipt', 'order confirmation',
+      'webinar', 'meeting invite', 'calendar'
+    ]
+
+    // Keywords that indicate a real deal submission
+    const dealKeywords = [
+      'fw:', 'fwd:', 'new deal', 'new submission', 'new application',
+      'submission', 'application', 'merchant', 'funding request',
+      'deal submission', 'new file', 'new client', 'llc', 'inc',
+      'corp', 'co.', 'dba', 'restaurant', 'construction', 'trucking',
+      'medical', 'dental', 'salon', 'auto', 'repair', 'catering'
+    ]
 
     for (const msg of messages) {
       try {
@@ -61,30 +87,38 @@ export default async function handler(req, res) {
         const fromEmail = fromRaw.match(/<(.+)>/)?.[1] || fromRaw.trim()
         const fromName  = fromRaw.match(/^(.+?)\s*</)?.[1]?.trim() || fromEmail
 
-        // Extract business name from subject
-        const businessName = subject
-          .replace(/^FW:\s*/i, '')
-          .replace(/^NEW DEAL\s*-\s*/i, '')
-          .replace(/^New Submission\s*/i, '')
-          .trim() || 'Unknown Business'
+        const subjectLower = subject.toLowerCase()
+        const fromLower    = fromEmail.toLowerCase()
 
-        // Skip non-deal emails
-       const skipKeywords = ['canva', 'streak', 'linkedin', 'unsubscribe', 'newsletter', 'noreply', 'no-reply', 'marketing', 'promo']
-const isSpam = skipKeywords.some(k => fromEmail.toLowerCase().includes(k)) && 
-               !subject.toLowerCase().includes('fw:') &&
-               !subject.toLowerCase().includes('new deal') &&
-               !subject.toLowerCase().includes('submission') &&
-               !subject.toLowerCase().includes('application')
+        // Skip if from a known non-deal domain
+        const isDomainSkip = skipDomains.some(d => fromLower.includes(d))
 
-        if (isSpam) {
-          results.push({ messageId: msg.id, status: 'skipped', reason: 'not a deal' })
+        // Skip if subject contains non-deal words
+        const isSubjectSkip = skipSubjectWords.some(w => subjectLower.includes(w))
+
+        // Check if it looks like a real deal
+        const isDeal = dealKeywords.some(k => subjectLower.includes(k))
+
+        if (isDomainSkip || isSubjectSkip || !isDeal) {
+          // Mark as read but don't create deal
           await gmail.users.messages.modify({
             userId: 'me',
             id: msg.id,
             requestBody: { removeLabelIds: ['UNREAD'] }
           })
+          results.push({ messageId: msg.id, status: 'skipped', subject, from: fromEmail })
           continue
         }
+
+        // Extract business name from subject
+        const businessName = subject
+          .replace(/^FW:\s*/i, '')
+          .replace(/^FWD:\s*/i, '')
+          .replace(/^NEW DEAL\s*[-:]\s*/i, '')
+          .replace(/^New Submission\s*/i, '')
+          .replace(/^New Application\s*/i, '')
+          .replace(/^Submission\s*[-:]\s*/i, '')
+          .trim() || 'Unknown Business'
 
         // Get deal count for deal number
         const { count } = await supabase
@@ -93,24 +127,24 @@ const isSpam = skipKeywords.some(k => fromEmail.toLowerCase().includes(k)) &&
 
         const dealNumber = `D-${String((count || 0) + 1).padStart(4, '0')}`
 
-        // Look up broker
+        // Look up broker by email
         const { data: broker } = await supabase
           .from('brokers')
           .select('id, name')
           .eq('email', fromEmail.toLowerCase())
           .single()
 
-        // Create deal in Supabase
+        // Create deal
         const { data: deal, error } = await supabase
           .from('deals')
           .insert({
-            deal_number: dealNumber,
-            broker_id: broker?.id || null,
-            business_name: businessName,
-            contact_name: fromName,
-            contact_email: fromEmail,
-            status: 'new',
-            source: 'email',
+            deal_number:    dealNumber,
+            broker_id:      broker?.id || null,
+            business_name:  businessName,
+            contact_name:   fromName,
+            contact_email:  fromEmail,
+            status:         'new',
+            source:         'email',
             gmail_thread_id: message.threadId,
             notes: `From: ${fromName} <${fromEmail}>\nSubject: ${subject}`
           })
@@ -119,14 +153,14 @@ const isSpam = skipKeywords.some(k => fromEmail.toLowerCase().includes(k)) &&
 
         if (error) throw error
 
-        // Log the sync
+        // Log sync
         await supabase.from('gmail_sync_log').insert({
           gmail_message_id: msg.id,
-          gmail_thread_id: message.threadId,
+          gmail_thread_id:  message.threadId,
           subject,
-          from_email: fromEmail,
-          deal_id: deal.id,
-          processed: true
+          from_email:       fromEmail,
+          deal_id:          deal.id,
+          processed:        true
         })
 
         // Mark as read
@@ -137,11 +171,11 @@ const isSpam = skipKeywords.some(k => fromEmail.toLowerCase().includes(k)) &&
         })
 
         results.push({
-          messageId: msg.id,
+          messageId:    msg.id,
           dealNumber,
           businessName,
-          from: fromEmail,
-          status: 'created'
+          from:         fromEmail,
+          status:       'created'
         })
 
       } catch (err) {
