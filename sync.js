@@ -1,180 +1,222 @@
-# FlowCap — Setup Guide
-Complete this in order. Takes ~2 hours start to finish.
+// api/sheets/sync.js
+// Google Sheets Sync — uses OAuth2 (no service account key needed)
+// Tab names: Submissions (deals), Funded Deals, ISO Performance (brokers)
+// Runs every 15 minutes via Vercel cron
 
-═══════════════════════════════════════════════════════
-STEP 1 — SUPABASE (15 min)
-═══════════════════════════════════════════════════════
+import { google } from 'googleapis'
+import { supabaseAdmin } from '../../lib/supabase.js'
 
-1. Go to supabase.com → New project
-   - Name: flowcap
-   - Choose a strong password (save it)
-   - Region: US East (or closest to you)
+function getSheetsClient() {
+  const oauth2Client = new google.auth.OAuth2(
+    process.env.GMAIL_CLIENT_ID,
+    process.env.GMAIL_CLIENT_SECRET,
+    'https://developers.google.com/oauthplayground'
+  )
+  oauth2Client.setCredentials({
+    refresh_token: process.env.GMAIL_REFRESH_TOKEN
+  })
+  return google.sheets({ version: 'v4', auth: oauth2Client })
+}
 
-2. Once created, go to SQL Editor → paste the entire
-   contents of supabase/schema.sql → Run
+export default async function handler(req, res) {
+  if (req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
+    return res.status(401).json({ error: 'Unauthorized' })
+  }
 
-3. Go to Storage → New bucket
-   - Name: deal-documents
-   - Public: NO
+  const pull = req.query.pull === '1'
 
-4. Go to Settings → API → copy:
-   - Project URL → NEXT_PUBLIC_SUPABASE_URL
-   - anon/public key → NEXT_PUBLIC_SUPABASE_ANON_KEY
-   - service_role key → SUPABASE_SERVICE_ROLE_KEY
+  try {
+    if (pull) {
+      const results = await pullFromSheets()
+      return res.json({ direction: 'pull', results })
+    } else {
+      const results = await pushToSheets()
+      return res.json({ direction: 'push', results })
+    }
+  } catch (err) {
+    console.error('Sheets sync error:', err)
+    return res.status(500).json({ error: err.message })
+  }
+}
 
-═══════════════════════════════════════════════════════
-STEP 2 — GOOGLE CLOUD (30 min)
-═══════════════════════════════════════════════════════
+async function pushToSheets() {
+  const sheets = getSheetsClient()
+  const results = {}
+  results.deals   = await pushSubmissions(sheets)
+  results.brokers = await pushISOPerformance(sheets)
+  results.funded  = await pushFundedDeals(sheets)
+  for (const [sheet, result] of Object.entries(results)) {
+    await supabaseAdmin.from('sheets_sync_log').insert({
+      sheet_name: sheet, action: 'push',
+      rows: result.rows, error: result.error || null
+    })
+  }
+  return results
+}
 
-1. Go to console.cloud.google.com
-2. Create a new project: "flowcap"
-3. Enable these APIs (APIs & Services → Library):
-   - Gmail API
-   - Google Sheets API
+async function pushSubmissions(sheets) {
+  try {
+    const { data: deals } = await supabaseAdmin
+      .from('deals')
+      .select('*, broker:brokers(name)')
+      .order('submitted_at', { ascending: false })
+      .limit(1000)
 
-4. Create Service Account:
-   - IAM & Admin → Service Accounts → Create
-   - Name: flowcap-service
-   - Grant role: Editor
-   - Create and download JSON key
+    const headers = [
+      'Deal #', 'Business Name', 'Contact', 'Broker / ISO', 'Amount Requested',
+      'Amount Approved', 'Factor Rate', 'Term (months)', 'Status', 'Risk Score',
+      'Monthly Revenue', 'Avg Daily Balance', 'Positions', 'NY Courts',
+      'DataMerch', 'Submitted Date', 'Funded Date', 'Balance', 'Notes'
+    ]
 
-5. GMAIL SETUP — Service Account needs delegation:
-   a. In Google Workspace Admin (admin.google.com):
-      Security → API Controls → Domain-wide Delegation
-   b. Add new: paste the service account Client ID
-   c. Add scope: https://www.googleapis.com/auth/gmail.readonly
-                 https://www.googleapis.com/auth/gmail.modify
-   d. NOTE: If you use personal Gmail (not Workspace), use
-      OAuth instead. Ask Claude for the OAuth version.
+    const rows = deals.map(d => [
+      d.deal_number, d.business_name, d.contact_name || '',
+      d.broker?.name || '', d.amount_requested || '',
+      d.amount_approved || '', d.factor_rate || '',
+      d.term_months || '', d.status, d.risk_score || '',
+      d.monthly_revenue || '', d.avg_daily_balance || '',
+      d.positions || 0, d.ny_court_result || '',
+      d.datamerch_result || '',
+      d.submitted_at ? new Date(d.submitted_at).toLocaleDateString() : '',
+      d.funded_at ? new Date(d.funded_at).toLocaleDateString() : '',
+      d.balance || '', d.notes ? d.notes.slice(0, 200) : ''
+    ])
 
-6. SHEETS SETUP:
-   - Share each of your 3 Google Sheets with the
-     service account email (it looks like:
-     flowcap-service@flowcap-xxx.iam.gserviceaccount.com)
-   - Give it Editor access
-   - Copy the Sheet ID from each URL (the long ID in the URL)
+    await clearAndWrite(sheets, process.env.SHEETS_DEALS_ID, 'Submissions!A1', [headers, ...rows])
+    return { rows: rows.length }
+  } catch (err) {
+    return { rows: 0, error: err.message }
+  }
+}
 
-7. Copy the service account JSON key content →
-   GOOGLE_SERVICE_ACCOUNT_JSON in .env
+async function pushISOPerformance(sheets) {
+  try {
+    const { data: brokers } = await supabaseAdmin.from('brokers').select('*').order('name')
+    const { data: dealStats } = await supabaseAdmin.from('deals').select('broker_id, status, amount_approved')
 
-═══════════════════════════════════════════════════════
-STEP 3 — ANTHROPIC API KEY (2 min)
-═══════════════════════════════════════════════════════
+    const stats = {}
+    for (const d of dealStats || []) {
+      if (!d.broker_id) continue
+      if (!stats[d.broker_id]) stats[d.broker_id] = { total: 0, funded: 0, volume: 0, declined: 0 }
+      stats[d.broker_id].total++
+      if (d.status === 'funded') { stats[d.broker_id].funded++; stats[d.broker_id].volume += d.amount_approved || 0 }
+      if (d.status === 'declined') stats[d.broker_id].declined++
+    }
 
-1. Go to console.anthropic.com
-2. API Keys → Create Key
-3. Copy → ANTHROPIC_API_KEY
+    const headers = [
+      'ISO / Broker Name', 'Contact', 'Email', 'Phone', 'Commission %',
+      'Total Submissions', 'Funded Deals', 'Declined Deals',
+      'Total Volume Funded', 'Conversion Rate', 'Active'
+    ]
 
-═══════════════════════════════════════════════════════
-STEP 4 — DOCUSIGN (30 min)
-═══════════════════════════════════════════════════════
+    const rows = brokers.map(b => {
+      const s = stats[b.id] || { total: 0, funded: 0, volume: 0, declined: 0 }
+      return [b.name, b.contact || '', b.email || '', b.phone || '', b.commission_pct,
+        s.total, s.funded, s.declined, s.volume,
+        s.total > 0 ? Math.round(s.funded / s.total * 100) + '%' : '0%',
+        b.active ? 'Yes' : 'No']
+    })
 
-1. Go to developers.docusign.com → Create account
-2. Apps & Keys → Add App
-   - Name: FlowCap
-   - Auth Type: JWT
-3. Copy Integration Key → DOCUSIGN_INTEGRATION_KEY
-4. Copy User ID (your account) → DOCUSIGN_USER_ID
-5. Copy Account ID → DOCUSIGN_ACCOUNT_ID
-6. Generate RSA Key Pair → save private key → DOCUSIGN_PRIVATE_KEY
-7. Grant consent: visit this URL in browser:
-   https://account-d.docusign.com/oauth/auth?response_type=code&scope=signature%20impersonation&client_id=YOUR_INTEGRATION_KEY&redirect_uri=https://yourapp.vercel.app
+    await clearAndWrite(sheets, process.env.SHEETS_BROKERS_ID, 'ISO Performance!A1', [headers, ...rows])
+    return { rows: rows.length }
+  } catch (err) {
+    return { rows: 0, error: err.message }
+  }
+}
 
-8. Create your contract template:
-   - Templates → New Template
-   - Upload your MCA contract PDF
-   - Add signature + text fields
-   - Match field names to the textTabs in api/docusign/send.js
-   - Copy Template ID → DOCUSIGN_TEMPLATE_ID
+async function pushFundedDeals(sheets) {
+  try {
+    const { data: funded } = await supabaseAdmin
+      .from('deals').select('*, broker:brokers(name)')
+      .eq('status', 'funded').order('funded_at', { ascending: false })
 
-9. Set up webhook (after deploying to Vercel):
-   - Connect → Add Configuration
-   - URL: https://yourapp.vercel.app/api/docusign/webhook
-   - Events: envelope-completed, envelope-declined
+    const headers = [
+      'Deal #', 'Business Name', 'Contact', 'ISO / Broker',
+      'Funded Amount', 'Factor Rate', 'Term (months)',
+      'Payback Amount', 'Current Balance', '% Paid',
+      'Funded Date', 'Daily Payment', 'Renewal Eligible'
+    ]
 
-═══════════════════════════════════════════════════════
-STEP 5 — DEPLOY TO VERCEL (10 min)
-═══════════════════════════════════════════════════════
+    const rows = funded.map(d => {
+      const payback = d.amount_approved && d.factor_rate ? Math.round(d.amount_approved * d.factor_rate) : ''
+      const dailyPay = payback && d.term_months ? Math.round(payback / (d.term_months * 21)) : ''
+      const pctPaid = d.amount_approved && d.balance ? Math.round((1 - d.balance / d.amount_approved) * 100) + '%' : ''
+      const renewal = d.amount_approved && d.balance ? (d.balance / d.amount_approved <= 0.5 ? 'YES' : 'No') : ''
+      return [d.deal_number, d.business_name, d.contact_name || '', d.broker?.name || '',
+        d.amount_approved || '', d.factor_rate || '', d.term_months || '',
+        payback, d.balance || '', pctPaid,
+        d.funded_at ? new Date(d.funded_at).toLocaleDateString() : '',
+        dailyPay, renewal]
+    })
 
-1. Push this code to a GitHub repository
+    await clearAndWrite(sheets, process.env.SHEETS_FUNDED_ID, 'Funded Deals!A1', [headers, ...rows])
+    return { rows: rows.length }
+  } catch (err) {
+    return { rows: 0, error: err.message }
+  }
+}
 
-2. Go to vercel.com → New Project → Import from GitHub
+async function pullFromSheets() {
+  const sheets = getSheetsClient()
+  let updated = 0
 
-3. Add ALL environment variables from .env.example:
-   Settings → Environment Variables → add each one
+  try {
+    const { data: sheetRows } = await sheets.spreadsheets.values.get({
+      spreadsheetId: process.env.SHEETS_DEALS_ID,
+      range: 'Submissions!A2:S1000'
+    })
 
-4. Deploy — your app gets a URL like flowcap.vercel.app
+    for (const row of (sheetRows?.values || [])) {
+      const dealNumber = row[0]
+      if (!dealNumber) continue
+      const { data: deal } = await supabaseAdmin.from('deals').select('id, balance, notes').eq('deal_number', dealNumber).single()
+      if (!deal) continue
+      const updates = {}
+      const bal = parseFloat(row[17]) || null
+      if (bal !== null && bal !== deal.balance) updates.balance = bal
+      if (row[18] && row[18] !== (deal.notes || '')) updates.notes = row[18]
+      if (Object.keys(updates).length > 0) {
+        await supabaseAdmin.from('deals').update(updates).eq('id', deal.id)
+        updated++
+      }
+    }
+  } catch (err) {
+    console.error('Pull error:', err)
+  }
 
-5. Generate CRON_SECRET:
-   Run in terminal: openssl rand -base64 32
-   Add to Vercel env vars
+  await supabaseAdmin.from('sheets_sync_log').insert({ sheet_name: 'Submissions', action: 'pull', rows: updated })
+  return { updated }
+}
 
-6. Generate NEXTAUTH_SECRET:
-   Run: openssl rand -base64 32
-   Add to Vercel env vars
+async function clearAndWrite(sheets, spreadsheetId, range, values) {
+  await sheets.spreadsheets.values.clear({ spreadsheetId, range })
+  await sheets.spreadsheets.values.update({
+    spreadsheetId, range,
+    valueInputOption: 'USER_ENTERED',
+    requestBody: { values }
+  })
 
-7. After deploy, confirm cron jobs:
-   Vercel dashboard → your project → Cron Jobs
-   You should see 3 crons listed
+  const sheetId = await getSheetId(sheets, spreadsheetId, range)
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId,
+    requestBody: {
+      requests: [
+        {
+          repeatCell: {
+            range: { sheetId, startRowIndex: 0, endRowIndex: 1 },
+            cell: { userEnteredFormat: { backgroundColor: { red: 0.1, green: 0.15, blue: 0.25 }, textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 } } } },
+            fields: 'userEnteredFormat(backgroundColor,textFormat)'
+          }
+        },
+        { autoResizeDimensions: { dimensions: { sheetId, dimension: 'COLUMNS', startIndex: 0, endIndex: 20 } } }
+      ]
+    }
+  })
+}
 
-═══════════════════════════════════════════════════════
-STEP 6 — TEST EVERYTHING (15 min)
-═══════════════════════════════════════════════════════
-
-Test 1 — Gmail watcher:
-  Send an email to your deals inbox with a PDF attachment
-  Wait 5 min → check Supabase deals table for new row
-  OR manually trigger: POST /api/gmail/watch with
-  Authorization: Bearer YOUR_CRON_SECRET
-
-Test 2 — AI Scrubber:
-  POST /api/scrubber/run { "dealId": "your-deal-uuid" }
-  Check Supabase deals table — should have risk_score set
-
-Test 3 — Sheets sync:
-  POST /api/sheets/sync (with Authorization header)
-  Check your Google Sheets — should have all deals populated
-
-Test 4 — DocuSign (use sandbox first):
-  Set DOCUSIGN_BASE_URL=https://demo.docusign.net/restapi
-  POST /api/docusign/send { "dealId": "your-deal-uuid" }
-  Check email for DocuSign envelope
-
-═══════════════════════════════════════════════════════
-GMAIL PERSONAL ACCOUNT NOTE
-═══════════════════════════════════════════════════════
-
-If you use personal Gmail (not Google Workspace),
-service account delegation won't work. You need OAuth2.
-The flow is:
-1. Create OAuth2 credentials (Web application type)
-2. Get refresh token by authorizing once
-3. Store refresh token as GMAIL_REFRESH_TOKEN
-4. Exchange for access token on each request
-
-Ask Claude: "Give me the Gmail OAuth2 version of the
-watcher for a personal Gmail account"
-
-═══════════════════════════════════════════════════════
-YOUR GOOGLE SHEETS COLUMN STRUCTURE
-═══════════════════════════════════════════════════════
-
-The sync will create these columns automatically.
-If you have existing data, either:
-  a) Clear your sheets and let the sync repopulate, OR
-  b) Ask Claude to map your existing columns
-
-Deals sheet columns (auto-created):
-  Deal # | Business | Contact | Broker | Requested | Approved |
-  Factor Rate | Term | Status | Risk Score | Monthly Revenue |
-  Avg Daily Bal | Positions | NY Courts | DataMerch |
-  Submitted | Funded Date | Balance | Notes
-
-Brokers sheet columns:
-  Name | Contact | Email | Phone | Commission % |
-  Total Deals | Funded Deals | Total Volume | Conversion % | Active
-
-Funded sheet columns:
-  Deal # | Business | Contact | Broker | Funded Amount |
-  Factor Rate | Term | Payback Amount | Balance | % Paid |
-  Funded Date | Daily Payment | Renewal Eligible
+async function getSheetId(sheets, spreadsheetId, range) {
+  const tabName = range.split('!')[0]
+  const { data } = await sheets.spreadsheets.get({ spreadsheetId })
+  const sheet = data.sheets?.find(s => s.properties.title === tabName)
+  return sheet?.properties?.sheetId || 0
+}
