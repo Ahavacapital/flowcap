@@ -4,7 +4,7 @@ export default function Home() {
       <style>{`
         *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
         :root{--bg:#0a0c0f;--bg2:#111318;--bg3:#181c23;--bg4:#1e2330;--border:#ffffff0f;--border2:#ffffff18;--border3:#ffffff28;--text:#e8eaf0;--text2:#8b90a0;--text3:#555a6a;--accent:#3b82f6;--accent2:#6366f1;--green:#10b981;--amber:#f59e0b;--red:#ef4444;--purple:#a78bfa;--teal:#14b8a6;--font:'DM Sans',sans-serif;--mono:'DM Mono',monospace;--serif:'Playfair Display',serif;--radius:10px;--radius-lg:16px;--radius-xl:24px;}
-        html,body,#app{height:100%;width:100%;background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}
+        html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}
         #app{height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px}
         .lmark{font-family:Georgia,serif;font-size:36px;color:var(--text)}.lmark span{color:var(--accent)}
         .lsub{font-size:12px;color:var(--text3);letter-spacing:2px;text-transform:uppercase}
@@ -25,18 +25,39 @@ export default function Home() {
       <script src="https://unpkg.com/@babel/standalone@7.23.0/babel.min.js" defer></script>
       <script type="text/babel" data-type="module">{`
 
-const {useState}=React;
+const {useState,useEffect}=React;
 
-const DEALS=[
-  {id:'D-0041',business:'Sunrise Diner LLC',contact:'Marco Reyes',broker:'TCA Capital',amount:85000,requested:100000,status:'funded',risk:72,factor:1.38,term:8,positions:1,avgDailyBal:9420,monthlyRev:62000,nyCourt:'clean',dataMerch:'clean',submitted:'2025-06-01',funded:'2025-06-05',balance:48200,notes:'Renewal eligible at 50% paydown',uwNotes:[]},
-  {id:'D-0042',business:'Metro Auto Repair',contact:'Linda Park',broker:'Apex Brokers',amount:null,requested:45000,status:'underwriting',risk:58,factor:null,term:null,positions:2,avgDailyBal:4100,monthlyRev:28000,nyCourt:'1 default',dataMerch:'clean',submitted:'2025-06-08',funded:null,balance:null,notes:'',uwNotes:[]},
-  {id:'D-0043',business:'Greenleaf Wellness',contact:'Sam Torres',broker:'TCA Capital',amount:62000,requested:60000,status:'offered',risk:81,factor:1.29,term:6,positions:1,avgDailyBal:7800,monthlyRev:51000,nyCourt:'clean',dataMerch:'clean',submitted:'2025-06-09',funded:null,balance:null,notes:'',uwNotes:[]},
-  {id:'D-0044',business:'Harbor Fish Market',contact:'Tony Wu',broker:'Blue Ocean Fin',amount:null,requested:30000,status:'scrubbing',risk:null,factor:null,term:null,positions:0,avgDailyBal:null,monthlyRev:null,nyCourt:null,dataMerch:null,submitted:'2025-06-10',funded:null,balance:null,notes:'',uwNotes:[]},
-  {id:'D-0045',business:'Apex Print & Design',contact:'Rachel Kim',broker:'Apex Brokers',amount:null,requested:25000,status:'declined',risk:32,factor:null,term:null,positions:4,avgDailyBal:1200,monthlyRev:8000,nyCourt:'3 defaults',dataMerch:'flagged',submitted:'2025-06-07',funded:null,balance:null,notes:'Too many positions',uwNotes:[]},
-  {id:'D-0046',business:'Crestview Hotel',contact:'James Ollie',broker:'Landmark Cap',amount:150000,requested:150000,status:'contracts',risk:88,factor:1.22,term:10,positions:0,avgDailyBal:18000,monthlyRev:120000,nyCourt:'clean',dataMerch:'clean',submitted:'2025-06-06',funded:null,balance:null,notes:'',uwNotes:[]},
-  {id:'D-0047',business:'Urban Eats Catering',contact:'Maya Patel',broker:'TCA Capital',amount:38000,requested:40000,status:'bankverify',risk:76,factor:1.35,term:6,positions:1,avgDailyBal:5200,monthlyRev:34000,nyCourt:'clean',dataMerch:'clean',submitted:'2025-06-05',funded:null,balance:null,notes:'',uwNotes:[]},
-  {id:'D-0048',business:'Steel City Gym',contact:'Derek Stone',broker:'Blue Ocean Fin',amount:22000,requested:20000,status:'funded',risk:79,factor:1.41,term:5,positions:1,avgDailyBal:3800,monthlyRev:22000,nyCourt:'clean',dataMerch:'clean',submitted:'2025-05-20',funded:'2025-05-24',balance:6600,notes:'Renewal eligible at 50% paydown',uwNotes:[]},
-];
+function mapDeal(d){
+  return {
+    id: d.deal_number||d.id,
+    dbId: d.id,
+    business: d.business_name||'Unknown',
+    contact: d.contact_name||'',
+    broker: d.broker?.name||d.contact_email||'Unknown',
+    amount: d.amount_approved||null,
+    requested: d.amount_requested||null,
+    status: d.status||'new',
+    risk: d.risk_score||null,
+    factor: d.factor_rate||null,
+    term: d.term_months||null,
+    positions: d.positions||0,
+    avgDailyBal: d.avg_daily_balance||null,
+    monthlyRev: d.monthly_revenue||null,
+    nyCourt: d.ny_court_result||null,
+    dataMerch: d.datamerch_result||null,
+    submitted: d.submitted_at?.slice(0,10)||'',
+    funded: d.funded_at?.slice(0,10)||null,
+    balance: d.balance||null,
+    notes: d.notes||'',
+    uwNotes: (d.notes||[]).filter(n=>n&&n.body).map(n=>({
+      id: n.id,
+      text: n.body,
+      category: n.category||'general',
+      author: n.author||'System',
+      time: n.created_at?new Date(n.created_at).toLocaleString():''
+    }))
+  };
+}
 
 const BROKERS=[
   {id:'B-01',name:'TCA Capital',contact:'Alex Thornton',email:'alex@tcacapital.com',deals:12,funded:8,volume:680000,commission:34000},
@@ -171,9 +192,35 @@ textarea.fi{resize:vertical;min-height:80px}
 
 function App(){
   const [pg,setPg]=useState('dashboard');
-  const [deals,setDeals]=useState(DEALS);
+  const [deals,setDeals]=useState([]);
+  const [loading,setLoading]=useState(true);
   const [sel,setSel]=useState(null);
   const [showNew,setShowNew]=useState(false);
+
+  useEffect(()=>{
+    fetch('/api/deals/list')
+      .then(r=>r.json())
+      .then(data=>{
+        if(data.deals) setDeals(data.deals.map(mapDeal));
+        setLoading(false);
+      })
+      .catch(err=>{
+        console.error('Failed to load deals:',err);
+        setLoading(false);
+      });
+  },[]);
+
+  const refreshDeals=()=>{
+    setLoading(true);
+    fetch('/api/deals/list')
+      .then(r=>r.json())
+      .then(data=>{
+        if(data.deals) setDeals(data.deals.map(mapDeal));
+        setLoading(false);
+      })
+      .catch(()=>setLoading(false));
+  };
+
   const upd=d=>setDeals(ds=>ds.map(x=>x.id===d.id?d:x));
   const add=d=>setDeals(ds=>[d,...ds]);
   const funded=deals.filter(d=>d.status==='funded');
@@ -183,6 +230,15 @@ function App(){
   const nav=[{id:'dashboard',l:'Dashboard'},{id:'pipeline',l:'Pipeline',b:active.length,bc:'am'},{id:'deals',l:'All Deals'},{id:'brokers',l:'Brokers'},{id:'contracts',l:'Contracts'}];
   const nav2=[{id:'broker-portal',l:'Broker Portal'},{id:'merchant-portal',l:'Merchant Portal'}];
   const nav3=[{id:'mkt-broker',l:'Broker Campaigns'},{id:'mkt-merchant',l:'Merchant Campaigns'}];
+
+  if(loading) return(
+    <div id="app">
+      <div className="lmark">Flow<span>Cap</span></div>
+      <div className="lsub">MCA Platform</div>
+      <div className="lbar"><div className="lfill"/></div>
+      <div className="lst">Loading your deals...</div>
+    </div>
+  );
 
   return (
     <>
@@ -203,7 +259,10 @@ function App(){
         <div className="mn">
           <div className="tb">
             <div className="pt">{pts[pg]||pg}</div>
-            <div className="tr"><button className="btn bp" onClick={()=>setShowNew(true)}>+ New deal</button></div>
+            <div className="tr">
+              <button className="btn bg bs" onClick={refreshDeals} title="Refresh deals">↻ Refresh</button>
+              <button className="btn bp" onClick={()=>setShowNew(true)}>+ New deal</button>
+            </div>
           </div>
           <div className="ct">
             {pg==='dashboard'&&<Dashboard deals={deals} setPg={setPg} setSel={setSel} tf={tf} active={active}/>}
