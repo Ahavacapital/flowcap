@@ -69,8 +69,12 @@ export default async function handler(req, res) {
           .trim() || 'Unknown Business'
 
         // Skip non-deal emails
-        const skipKeywords = ['canva', 'streak', 'linkedin', 'unsubscribe', 'newsletter']
-        const isSpam = skipKeywords.some(k => subject.toLowerCase().includes(k) || fromEmail.toLowerCase().includes(k))
+       const skipKeywords = ['canva', 'streak', 'linkedin', 'unsubscribe', 'newsletter', 'noreply', 'no-reply', 'marketing', 'promo']
+const isSpam = skipKeywords.some(k => fromEmail.toLowerCase().includes(k)) && 
+               !subject.toLowerCase().includes('fw:') &&
+               !subject.toLowerCase().includes('new deal') &&
+               !subject.toLowerCase().includes('submission') &&
+               !subject.toLowerCase().includes('application')
 
         if (isSpam) {
           results.push({ messageId: msg.id, status: 'skipped', reason: 'not a deal' })
