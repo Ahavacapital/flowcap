@@ -1,5 +1,9 @@
 export default async function handler(req, res) {
-try {
+  if (req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
+    return res.status(401).json({ error: 'Unauthorized' })
+  }
+
+  try {
     const { google } = require('googleapis')
 
     const oauth2Client = new google.auth.OAuth2(
@@ -38,14 +42,24 @@ try {
         const subject   = getHeader('Subject')
         const fromRaw   = getHeader('From')
         const fromEmail = fromRaw.match(/<(.+)>/)?.[1] || fromRaw.trim()
+        const fromName  = fromRaw.match(/^(.+?)\s*</)?.[1]?.trim() || fromEmail
+
+        // Extract business name from subject
+        const businessName = subject
+          .replace(/^FW:\s*/i, '')
+          .replace(/^NEW DEAL\s*-\s*/i, '')
+          .replace(/^New Submission\s*/i, '')
+          .trim() || 'Unknown Business'
 
         results.push({
           messageId: msg.id,
           subject,
           from: fromEmail,
+          businessName,
           status: 'received'
         })
 
+        // Mark as read
         await gmail.users.messages.modify({
           userId: 'me',
           id: msg.id,
