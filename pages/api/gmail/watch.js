@@ -1,4 +1,4 @@
-import { google } from 'googleapis'
+const { google } = require('googleapis')
 
 function getGoogleAuth() {
   const oauth2Client = new google.auth.OAuth2(
@@ -12,7 +12,7 @@ function getGoogleAuth() {
   return oauth2Client
 }
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
@@ -46,7 +46,6 @@ export default async function handler(req, res) {
         const subject   = getHeader('Subject')
         const fromRaw   = getHeader('From')
         const fromEmail = fromRaw.match(/<(.+)>/)?.[1] || fromRaw.trim()
-        const fromName  = fromRaw.match(/^(.+?)\s*</)?.[1]?.trim() || fromEmail
 
         results.push({
           messageId: msg.id,
@@ -69,7 +68,7 @@ export default async function handler(req, res) {
     return res.json({ processed: results.length, results })
 
   } catch (err) {
-    console.error('Gmail watch error:', err)
+    console.error('Gmail watch error:', err.message)
     return res.status(500).json({ error: err.message })
   }
 }
