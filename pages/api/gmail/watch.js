@@ -5,13 +5,18 @@ export default async function handler(req, res) {
 
   try {
     const { google } = require('googleapis')
+    const { createClient } = require('@supabase/supabase-js')
+
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    )
 
     const oauth2Client = new google.auth.OAuth2(
       process.env.GMAIL_CLIENT_ID,
       process.env.GMAIL_CLIENT_SECRET,
       'https://developers.google.com/oauthplayground'
     )
-
     oauth2Client.setCredentials({
       refresh_token: process.env.GMAIL_REFRESH_TOKEN
     })
@@ -29,6 +34,18 @@ export default async function handler(req, res) {
 
     for (const msg of messages) {
       try {
+        // Check if already processed
+        const { data: existing } = await supabase
+          .from('gmail_sync_log')
+          .select('id')
+          .eq('gmail_message_id', msg.id)
+          .single()
+
+        if (existing) {
+          results.push({ messageId: msg.id, status: 'already_processed' })
+          continue
+        }
+
         const { data: message } = await gmail.users.messages.get({
           userId: 'me',
           id: msg.id,
@@ -51,12 +68,61 @@ export default async function handler(req, res) {
           .replace(/^New Submission\s*/i, '')
           .trim() || 'Unknown Business'
 
-        results.push({
-          messageId: msg.id,
+        // Skip non-deal emails
+        const skipKeywords = ['canva', 'streak', 'linkedin', 'unsubscribe', 'newsletter']
+        const isSpam = skipKeywords.some(k => subject.toLowerCase().includes(k) || fromEmail.toLowerCase().includes(k))
+
+        if (isSpam) {
+          results.push({ messageId: msg.id, status: 'skipped', reason: 'not a deal' })
+          await gmail.users.messages.modify({
+            userId: 'me',
+            id: msg.id,
+            requestBody: { removeLabelIds: ['UNREAD'] }
+          })
+          continue
+        }
+
+        // Get deal count for deal number
+        const { count } = await supabase
+          .from('deals')
+          .select('*', { count: 'exact', head: true })
+
+        const dealNumber = `D-${String((count || 0) + 1).padStart(4, '0')}`
+
+        // Look up broker
+        const { data: broker } = await supabase
+          .from('brokers')
+          .select('id, name')
+          .eq('email', fromEmail.toLowerCase())
+          .single()
+
+        // Create deal in Supabase
+        const { data: deal, error } = await supabase
+          .from('deals')
+          .insert({
+            deal_number: dealNumber,
+            broker_id: broker?.id || null,
+            business_name: businessName,
+            contact_name: fromName,
+            contact_email: fromEmail,
+            status: 'new',
+            source: 'email',
+            gmail_thread_id: message.threadId,
+            notes: `From: ${fromName} <${fromEmail}>\nSubject: ${subject}`
+          })
+          .select()
+          .single()
+
+        if (error) throw error
+
+        // Log the sync
+        await supabase.from('gmail_sync_log').insert({
+          gmail_message_id: msg.id,
+          gmail_thread_id: message.threadId,
           subject,
-          from: fromEmail,
-          businessName,
-          status: 'received'
+          from_email: fromEmail,
+          deal_id: deal.id,
+          processed: true
         })
 
         // Mark as read
@@ -64,6 +130,14 @@ export default async function handler(req, res) {
           userId: 'me',
           id: msg.id,
           requestBody: { removeLabelIds: ['UNREAD'] }
+        })
+
+        results.push({
+          messageId: msg.id,
+          dealNumber,
+          businessName,
+          from: fromEmail,
+          status: 'created'
         })
 
       } catch (err) {
