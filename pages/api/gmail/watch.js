@@ -23,7 +23,7 @@ export default async function handler(req, res) {
 
     const gmail = google.gmail({ version: 'v1', auth: oauth2Client })
 
-    // Only pull from INBOX, unread, not promotions/social
+    // Only pull unread emails from inbox
     const query = 'is:unread in:inbox to:' + process.env.GMAIL_USER_EMAIL + ' -category:promotions -category:social -category:updates'
 
     const { data: listData } = await gmail.users.messages.list({
@@ -35,25 +35,44 @@ export default async function handler(req, res) {
     const messages = listData.messages || []
     const results = []
 
-    const skipDomains = [
-      'canva.com', 'streak.com', 'linkedin.com', 'google.com',
-      'facebook.com', 'twitter.com', 'mailchimp.com', 'sendgrid.net',
-      'constantcontact.com', 'hubspot.com', 'salesforce.com'
+    // ─── INTERNAL DOMAINS — ALWAYS SKIP ──────────────────────
+    // These are your own company emails — never create deals from these
+    const internalDomains = [
+      'yoyo.com',
+      'genesis.com',
+      'ahavacapital.com',
+      'ahava.com'
     ]
 
+    // ─── MARKETING/SPAM DOMAINS — ALWAYS SKIP ────────────────
+    const spamDomains = [
+      'canva.com', 'streak.com', 'linkedin.com', 'google.com',
+      'facebook.com', 'twitter.com', 'instagram.com', 'youtube.com',
+      'mailchimp.com', 'constantcontact.com', 'sendgrid.net',
+      'hubspot.com', 'salesforce.com', 'noreply', 'no-reply',
+      'donotreply', 'notifications', 'mailer', 'bounce',
+      'support@', 'info@', 'newsletter'
+    ]
+
+    // ─── SUBJECT WORDS THAT INDICATE NON-DEAL EMAILS ─────────
     const skipSubjectWords = [
       'unsubscribe', 'newsletter', 'your account', 'verify your',
-      'password reset', 'invoice', 'receipt', 'order confirmation',
-      'webinar', 'meeting invite'
+      'password reset', 'invoice for', 'receipt for',
+      'order confirmation', 'webinar', 'meeting invite',
+      'calendar invite', 'out of office', 'auto-reply',
+      'delivery failed', 'bounce', 'welcome to'
     ]
 
+    // ─── KEYWORDS THAT CONFIRM A REAL DEAL SUBMISSION ────────
     const dealKeywords = [
       'fw:', 'fwd:', 'new deal', 'new submission', 'new application',
       'submission', 'application', 'merchant', 'funding request',
       'new file', 'new client', 'llc', 'inc', 'corp', 'co.',
       'dba', 'restaurant', 'construction', 'trucking', 'medical',
       'dental', 'salon', 'auto', 'repair', 'catering', 'services',
-      'group', 'associates', 'enterprises', 'solutions', 'management'
+      'group', 'associates', 'enterprises', 'solutions', 'management',
+      'bar ', 'grill', 'cafe', 'hotel', 'motel', 'gym', 'fitness',
+      'plumbing', 'electric', 'hvac', 'roofing', 'landscaping'
     ]
 
     for (const msg of messages) {
@@ -88,17 +107,51 @@ export default async function handler(req, res) {
         const subjectLower = subject.toLowerCase()
         const fromLower    = fromEmail.toLowerCase()
 
-        const isDomainSkip  = skipDomains.some(d => fromLower.includes(d))
-        const isSubjectSkip = skipSubjectWords.some(w => subjectLower.includes(w))
-        const isDeal        = dealKeywords.some(k => subjectLower.includes(k))
-
-        if (isDomainSkip || isSubjectSkip || !isDeal) {
+        // Skip internal company emails
+        const isInternal = internalDomains.some(d => fromLower.includes(d))
+        if (isInternal) {
           await gmail.users.messages.modify({
             userId: 'me',
             id: msg.id,
             requestBody: { removeLabelIds: ['UNREAD'] }
           })
-          results.push({ messageId: msg.id, status: 'skipped', subject, from: fromEmail })
+          results.push({ messageId: msg.id, status: 'skipped', reason: 'internal email', from: fromEmail })
+          continue
+        }
+
+        // Skip spam/marketing domains
+        const isSpam = spamDomains.some(d => fromLower.includes(d))
+        if (isSpam) {
+          await gmail.users.messages.modify({
+            userId: 'me',
+            id: msg.id,
+            requestBody: { removeLabelIds: ['UNREAD'] }
+          })
+          results.push({ messageId: msg.id, status: 'skipped', reason: 'spam domain', from: fromEmail })
+          continue
+        }
+
+        // Skip non-deal subject lines
+        const isSubjectSkip = skipSubjectWords.some(w => subjectLower.includes(w))
+        if (isSubjectSkip) {
+          await gmail.users.messages.modify({
+            userId: 'me',
+            id: msg.id,
+            requestBody: { removeLabelIds: ['UNREAD'] }
+          })
+          results.push({ messageId: msg.id, status: 'skipped', reason: 'non-deal subject', subject })
+          continue
+        }
+
+        // Must match at least one deal keyword
+        const isDeal = dealKeywords.some(k => subjectLower.includes(k))
+        if (!isDeal) {
+          await gmail.users.messages.modify({
+            userId: 'me',
+            id: msg.id,
+            requestBody: { removeLabelIds: ['UNREAD'] }
+          })
+          results.push({ messageId: msg.id, status: 'skipped', reason: 'no deal keywords', subject })
           continue
         }
 
@@ -106,22 +159,24 @@ export default async function handler(req, res) {
         const businessName = subject
           .replace(/^FW:\s*/i, '')
           .replace(/^FWD:\s*/i, '')
+          .replace(/^RE:\s*/i, '')
           .replace(/^NEW DEAL\s*[-:]\s*/i, '')
-          .replace(/^New Submission\s*/i, '')
-          .replace(/^New Application\s*/i, '')
+          .replace(/^New Submission\s*[-:]\s*/i, '')
+          .replace(/^New Application\s*[-:]\s*/i, '')
           .replace(/^Submission\s*[-:]\s*/i, '')
+          .replace(/^Deal\s*[-:]\s*/i, '')
           .trim() || 'Unknown Business'
 
         // Extract body text
         const bodyText = extractBody(message.payload)
 
-        // Try to extract amount from subject or body
+        // Try to extract requested amount
         const amountMatch = (subject + ' ' + bodyText).match(/\$?([\d,]+)(?:k|K)?\b/)
         const amountStr = amountMatch?.[1]?.replace(/,/g, '') || ''
         let amount = amountStr ? parseInt(amountStr) : null
-        if (amount && amount < 1000) amount = amount * 1000 // Handle "50k" format
+        if (amount && amount < 1000) amount = amount * 1000
 
-        // Get deal count for deal number
+        // Get deal count for sequential deal number
         const { count } = await supabase
           .from('deals')
           .select('*', { count: 'exact', head: true })
@@ -174,25 +229,23 @@ export default async function handler(req, res) {
             }
             if (!data) continue
 
-            const buffer    = Buffer.from(data, 'base64')
-            const filename  = att.filename || 'attachment-' + Date.now()
-            const mimeType  = att.mimeType || 'application/octet-stream'
-            const path      = 'deals/' + deal.id + '/' + filename
-            const docType   = guessDocType(filename, mimeType)
+            const buffer   = Buffer.from(data, 'base64')
+            const filename = att.filename || 'attachment-' + Date.now()
+            const mimeType = att.mimeType || 'application/octet-stream'
+            const path     = 'deals/' + deal.id + '/' + filename
+            const docType  = guessDocType(filename, mimeType)
 
             if (docType === 'bank_statement') hasBankStatements = true
 
-            // Upload to Supabase storage
             const { error: uploadError } = await supabase.storage
               .from('deal-documents')
               .upload(path, buffer, { contentType: mimeType, upsert: true })
 
             if (uploadError) {
-              console.error('Upload error for', filename, ':', uploadError.message)
+              console.error('Upload error:', filename, uploadError.message)
               continue
             }
 
-            // Save document record
             await supabase.from('documents').insert({
               deal_id:      deal.id,
               name:         filename,
@@ -209,7 +262,7 @@ export default async function handler(req, res) {
           }
         }
 
-        // Log the sync
+        // Log sync
         await supabase.from('gmail_sync_log').insert({
           gmail_message_id: msg.id,
           gmail_thread_id:  message.threadId,
@@ -226,9 +279,9 @@ export default async function handler(req, res) {
           requestBody: { removeLabelIds: ['UNREAD'] }
         })
 
-        // Auto-trigger document parser if we have bank statements
         const appUrl = process.env.NEXTAUTH_URL || 'https://flowcap-mca.vercel.app'
 
+        // Auto-parse bank statements if found
         if (hasBankStatements && savedDocs > 0) {
           try {
             await fetch(appUrl + '/api/documents/parse', {
@@ -236,39 +289,36 @@ export default async function handler(req, res) {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ dealId: deal.id })
             })
-            console.log('Document parser triggered for deal', dealNumber)
-          } catch (parseErr) {
-            console.error('Document parser trigger failed:', parseErr.message)
+          } catch (e) {
+            console.error('Document parse trigger failed:', e.message)
           }
         }
 
-        // Auto-trigger scrubber
+        // Auto-scrub deal
         try {
           await fetch(appUrl + '/api/scrubber/run', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ dealId: deal.id })
           })
-          console.log('Scrubber triggered for deal', dealNumber)
-        } catch (scrubErr) {
-          console.error('Scrubber trigger failed:', scrubErr.message)
+        } catch (e) {
+          console.error('Scrubber trigger failed:', e.message)
         }
 
         results.push({
-          messageId:     msg.id,
+          messageId:        msg.id,
           dealNumber,
           businessName,
-          from:          fromEmail,
-          broker:        broker?.name || 'Unknown broker',
-          attachments:   savedDocs,
+          from:             fromEmail,
+          broker:           broker?.name || 'Unknown broker',
+          attachmentsSaved: savedDocs,
           hasBankStatements,
-          status:        'created'
+          status:           'created'
         })
 
       } catch (err) {
         console.error('Failed to process message', msg.id, ':', err.message)
         results.push({ messageId: msg.id, status: 'error', error: err.message })
-
         try {
           await supabase.from('gmail_sync_log').insert({
             gmail_message_id: msg.id,
@@ -279,7 +329,13 @@ export default async function handler(req, res) {
       }
     }
 
-    return res.json({ processed: results.length, results })
+    return res.json({
+      processed: results.length,
+      created: results.filter(r => r.status === 'created').length,
+      skipped: results.filter(r => r.status === 'skipped').length,
+      errors: results.filter(r => r.status === 'error').length,
+      results
+    })
 
   } catch (err) {
     console.error('Gmail watch error:', err.message)
@@ -316,13 +372,15 @@ function collectAttachments(payload, out) {
 
 function guessDocType(filename, mimeType) {
   const f = filename.toLowerCase()
-  if (f.includes('statement') || f.includes('bank') || f.includes('checking') ||
-      f.includes('savings') || f.includes('account') || mimeType === 'application/pdf') {
-    return 'bank_statement'
-  }
+  if (
+    f.includes('statement') || f.includes('bank') ||
+    f.includes('checking') || f.includes('savings') ||
+    f.includes('account') || f.endsWith('.pdf')
+  ) return 'bank_statement'
   if (f.includes('void') || f.includes('check')) return 'voided_check'
-  if (f.includes('id') || f.includes('license') || f.includes('passport')) return 'photo_id'
+  if (f.includes(' id') || f.includes('license') || f.includes('passport') || f.includes('dl')) return 'photo_id'
   if (f.includes('contract') || f.includes('agreement') || f.includes('signed')) return 'contract'
-  if (f.includes('tax') || f.includes('1099') || f.includes('w2')) return 'tax_document'
+  if (f.includes('tax') || f.includes('1099') || f.includes('w2') || f.includes('w-2')) return 'tax_document'
+  if (mimeType === 'application/pdf') return 'bank_statement'
   return 'other'
 }
