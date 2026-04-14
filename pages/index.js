@@ -252,7 +252,7 @@ function App(){
   const active=deals.filter(d=>!['funded','declined'].includes(d.status));
   const todayDeals=deals.filter(d=>isToday(d.submittedFull));
   const tf=funded.reduce((s,d)=>s+(d.amount||0),0);
-  const tp=deals.reduce((s,d=>s+(d.profit||0),0);
+  const tp=deals.reduce((s,d)=>s+(d.profit||0),0);
   const declinedCount=deals.filter(d=>d.status==='declined').length;
 
   const pts={dashboard:'Dashboard',pipeline:'Deal pipeline',deals:'All deals',brokers:'Brokers',contracts:'Contracts','broker-portal':'Broker portal','merchant-portal':'Merchant portal','mkt-broker':'Broker campaigns','mkt-merchant':'Merchant campaigns',settings:'Settings'};
@@ -276,11 +276,11 @@ function App(){
           </div>
           <div className="ns">Operations</div>
           {[
-            {id:'dashboard',l:'Dashboard',i:'📊'},
-            {id:'pipeline',l:'Pipeline',i:'🔄',b:active.length,bc:'am'},
-            {id:'deals',l:'All Deals',i:'📋'},
-            {id:'brokers',l:'Brokers / ISO',i:'🤝'},
-            {id:'contracts',l:'Contracts',i:'📄'},
+            {id:'dashboard',l:'Dashboard',i:''},
+            {id:'pipeline',l:'Pipeline',i:'',b:active.length,bc:'am'},
+            {id:'deals',l:'All Deals',i:''},
+            {id:'brokers',l:'Brokers / ISO',i:''},
+            {id:'contracts',l:'Contracts',i:''},
           ].map(n=>(
             <div key={n.id} className={'ni'+(pg===n.id?' ac':'')} onClick={()=>setPg(n.id)}>
               <span style={{fontSize:14}}>{n.i}</span>{n.l}
@@ -288,13 +288,13 @@ function App(){
             </div>
           ))}
           <div className="ns">Portals</div>
-          {[{id:'broker-portal',l:'Broker Portal',i:'🏢'},{id:'merchant-portal',l:'Merchant Portal',i:'🏪'}].map(n=>(
+          {[{id:'broker-portal',l:'Broker Portal',i:''},{id:'merchant-portal',l:'Merchant Portal',i:''}].map(n=>(
             <div key={n.id} className={'ni'+(pg===n.id?' ac':'')} onClick={()=>setPg(n.id)}>
               <span style={{fontSize:14}}>{n.i}</span>{n.l}
             </div>
           ))}
           <div className="ns">Marketing</div>
-          {[{id:'mkt-broker',l:'Broker Campaigns',i:'📣'},{id:'mkt-merchant',l:'Merchant Campaigns',i:'💌'}].map(n=>(
+          {[{id:'mkt-broker',l:'Broker Campaigns',i:''},{id:'mkt-merchant',l:'Merchant Campaigns',i:''}].map(n=>(
             <div key={n.id} className={'ni'+(pg===n.id?' ac':'')} onClick={()=>setPg(n.id)}>
               <span style={{fontSize:14}}>{n.i}</span>{n.l}
             </div>
@@ -317,11 +317,11 @@ function App(){
         <div className="mn">
           <div className="tb">
             <div className="pt">{pts[pg]||pg}</div>
-            {todayDeals.length>0&&<span className="today-badge pulse">🔴 {todayDeals.length} today</span>}
+            {todayDeals.length>0&&<span className="today-badge pulse">NEW: {todayDeals.length} today</span>}
             <div className="tr">
               <button className="btn bg bs" onClick={loadDeals} title="Refresh deals">↻</button>
               <button className="btn bg bs" onClick={syncSheets} disabled={syncing} title="Sync to Google Sheets">
-                {syncing?'Syncing...':'📊 Sync Sheets'}
+                {syncing?'Syncing...':'Sync Sheets'}
               </button>
               <button className="btn bp" onClick={()=>setShowNew(true)}>+ New deal</button>
             </div>
@@ -366,7 +366,7 @@ function Dashboard({deals,setPg,setSel,tf,tp,active,todayDeals,funded,declinedCo
 
       {todayDeals.length>0&&(
         <div style={{marginBottom:16,padding:'12px 16px',background:'#10b98112',border:'1px solid #10b98140',borderRadius:'var(--radius-lg)',display:'flex',alignItems:'center',gap:12}}>
-          <span style={{fontSize:20}}>🔔</span>
+          <span style={{fontSize:20}}></span>
           <div style={{flex:1}}>
             <div style={{fontSize:13,fontWeight:500,color:'var(--green)'}}>
               {todayDeals.length} new deal{todayDeals.length!==1?'s':''} today
@@ -531,7 +531,7 @@ function AllDeals({deals,setSel,setShowNew}){
     <div className="fa">
       <div className="filter-row">
         <div className="search-box">
-          <span className="search-icon">🔍</span>
+          <span className="search-icon"></span>
           <input className="fi" style={{paddingLeft:32}} placeholder="Search business, broker, deal #, contact..." value={srch} onChange={e=>setSrch(e.target.value)}/>
         </div>
         <button className="btn bp" onClick={()=>setShowNew(true)}>+ New deal</button>
@@ -603,7 +603,7 @@ function AllDeals({deals,setSel,setShowNew}){
             ))}</tbody>
           </table>
         </div>
-        {!filtered.length&&<div className="em"><div className="emi">🔍</div><div className="emt">No deals match your search</div></div>}
+        {!filtered.length&&<div className="em"><div className="emi"></div><div className="emt">No deals match your search</div></div>}
       </div>
     </div>
   );
@@ -689,7 +689,7 @@ function DealModal({deal,onClose,onUpd,onRefresh}){
 
         {deal.status==='declined'&&(
           <div style={{marginBottom:16,padding:'10px 14px',background:'#ef444412',border:'1px solid #ef444430',borderRadius:'var(--radius)',display:'flex',alignItems:'center',gap:10}}>
-            <span style={{fontSize:16}}>🚫</span>
+            <span style={{fontSize:16}}></span>
             <div>
               <div style={{fontSize:13,fontWeight:500,color:'var(--red)'}}>Deal declined</div>
               {deal.uwNotes?.find(n=>n.category==='risk')&&<div style={{fontSize:12,color:'var(--text3)'}}>{deal.uwNotes.find(n=>n.category==='risk').text.slice(0,100)}</div>}
@@ -774,14 +774,14 @@ function DealModal({deal,onClose,onUpd,onRefresh}){
             ].map((d,i)=>(
               <div key={i} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 12px',background:'var(--bg3)',borderRadius:'var(--radius)',marginBottom:8}}>
                 <div style={{display:'flex',alignItems:'center',gap:8}}>
-                  <span style={{fontSize:14}}>{d.ok?'✅':'📎'}</span>
+                  <span style={{fontSize:14}}>{d.ok?'✅':''}</span>
                   <span style={{fontSize:13,color:'var(--text)'}}>{d.n}</span>
                 </div>
                 <span className={'badge '+(d.ok?'badge-funded':'badge-underwriting')}>{d.ok?'received':'pending'}</span>
               </div>
             ))}
             <div className="uz" style={{marginTop:8}}>
-              <div style={{fontSize:14,marginBottom:4}}>📎</div>
+              <div style={{fontSize:14,marginBottom:4}}></div>
               <div style={{fontSize:13,color:'var(--text2)'}}>Drop files here or click to upload</div>
               <div style={{fontSize:11,color:'var(--text3)',marginTop:4}}>PDF, JPG, PNG up to 20MB</div>
             </div>
@@ -798,9 +798,9 @@ function DealModal({deal,onClose,onUpd,onRefresh}){
                 ))}
               </div>
               <textarea className="fi" style={{minHeight:64,marginBottom:8}} placeholder="Add your underwriting note..." value={note} onChange={e=>setNote(e.target.value)}/>
-              <button className="btn bp bs" onClick={addNote} disabled={!note.trim()}>💾 Save note</button>
+              <button className="btn bp bs" onClick={addNote} disabled={!note.trim()}> Save note</button>
             </div>
-            {!(deal.uwNotes||[]).length&&<div className="em"><div className="emi">📝</div><div className="emt">No notes yet</div></div>}
+            {!(deal.uwNotes||[]).length&&<div className="em"><div className="emi"></div><div className="emt">No notes yet</div></div>}
             <div style={{display:'flex',flexDirection:'column',gap:8}}>
               {(deal.uwNotes||[]).slice().reverse().map(n=>(
                 <div key={n.id} className={'note-card '+n.category}>
@@ -838,18 +838,18 @@ function DealModal({deal,onClose,onUpd,onRefresh}){
         <div className="action-bar">
           {['new','scrubbing','underwriting'].includes(deal.status)&&(
             <button className="btn bam bs" onClick={runScrub} disabled={scrubbing}>
-              {scrubbing?'🔄 Scrubbing...':'🤖 Run AI Scrub'}
+              {scrubbing?'Scrubbing...':'Run AI Scrub'}
             </button>
           )}
-          {deal.status==='offered'&&<button className="btn bp bs" onClick={()=>{onUpd({...deal,status:'contracts'});onClose()}}>📄 Generate contracts</button>}
-          {deal.status==='contracts'&&<button className="btn bp bs">✉️ Send via DocuSign</button>}
-          {deal.status==='bankverify'&&<button className="btn bsu bs" onClick={()=>{onUpd({...deal,status:'funded'});onClose()}}>✅ Mark funded</button>}
+          {deal.status==='offered'&&<button className="btn bp bs" onClick={()=>{onUpd({...deal,status:'contracts'});onClose()}}>Generate contracts</button>}
+          {deal.status==='contracts'&&<button className="btn bp bs">Send via DocuSign</button>}
+          {deal.status==='bankverify'&&<button className="btn bsu bs" onClick={()=>{onUpd({...deal,status:'funded'});onClose()}}>Mark funded</button>}
           {!['funded','declined'].includes(deal.status)&&NEXT[deal.status]&&(
             <button className="btn bg bs" onClick={advance} disabled={advancing}>
-              {advancing?'...':`Advance → ${SL[NEXT[deal.status]]}`}
+              {advancing?'...':'Advance → '+SL[NEXT[deal.status]]}
             </button>
           )}
-          {!['funded','declined'].includes(deal.status)&&<button className="btn bd bs" onClick={()=>{onUpd({...deal,status:'declined'});onClose()}}>🚫 Decline</button>}
+          {!['funded','declined'].includes(deal.status)&&<button className="btn bd bs" onClick={()=>{onUpd({...deal,status:'declined'});onClose()}}>Decline</button>}
           <button className="btn bg bs" onClick={onClose}>Close</button>
         </div>
       </div>
@@ -930,7 +930,7 @@ function NewDeal({onClose,onSave}){
               <div className="fgg"><label className="fl">Notes for underwriting</label><textarea className="fi" placeholder="Any context, position info, industry..." value={f.notes} onChange={e=>set('notes',e.target.value)}/></div>
             </div>
             <div style={{marginTop:16,display:'flex',gap:8}}>
-              <button className="btn bp" onClick={run} disabled={!f.business||!f.broker}>🤖 Run AI Scrubber</button>
+              <button className="btn bp" onClick={run} disabled={!f.business||!f.broker}> Run AI Scrubber</button>
               <button className="btn bg bs" onClick={onClose}>Cancel</button>
             </div>
           </>
@@ -949,7 +949,7 @@ function NewDeal({onClose,onSave}){
               <div className="dff"><div className="dl">Monthly revenue (est)</div><div className="dv">{f$(res.avgDailyBal)}</div></div>
               <div className="dff"><div className="dl">NY Courts</div><div className="dv" style={{color:res.nyCourt==='clean'?'var(--green)':'var(--red)'}}>{res.nyCourt}</div></div>
               <div className="dff"><div className="dl">DataMerch</div><div className="dv" style={{color:res.dataMerch==='clean'?'var(--green)':'var(--amber)'}}>{res.dataMerch}</div></div>
-              <div className="dff"><div className="dl">Decision</div><div className="dv" style={{color:res.risk>=50?'var(--green)':'var(--red)'}}>{res.risk>=50?'✅ Approve':'🚫 Decline'}</div></div>
+              <div className="dff"><div className="dl">Decision</div><div className="dv" style={{color:res.risk>=50?'var(--green)':'var(--red)'}}>{res.risk>=50?'✅ Approve':' Decline'}</div></div>
               <div className="dff"><div className="dl">Sell rate</div><div className="dv">1.499x (always)</div></div>
             </div>
             {res.risk>=50&&(
@@ -964,7 +964,7 @@ function NewDeal({onClose,onSave}){
               </div>
             )}
             <div style={{display:'flex',gap:8}}>
-              <button className="btn bp" onClick={save}>{res.risk>=50?'✅ Submit deal':'🚫 Save as declined'}</button>
+              <button className="btn bp" onClick={save}>{res.risk>=50?'Submit deal':'Save as declined'}</button>
               <button className="btn bg bs" onClick={onClose}>Cancel</button>
             </div>
           </div>
@@ -1008,7 +1008,7 @@ function BrokersPage({deals}){
               </div>
             </div>
           ))}
-          {!brokers.length&&<div className="em"><div className="emi">🤝</div><div className="emt">No brokers yet — deals will appear here once they come in</div></div>}
+          {!brokers.length&&<div className="em"><div className="emi"></div><div className="emt">No brokers yet — deals will appear here once they come in</div></div>}
         </div>
 
         {sel?(
@@ -1042,7 +1042,7 @@ function BrokersPage({deals}){
             </div>
           </div>
         ):(
-          <div className="em" style={{marginTop:60}}><div className="emi">👈</div><div className="emt">Select a broker to view their deals and performance</div></div>
+          <div className="em" style={{marginTop:60}}><div className="emi"></div><div className="emt">Select a broker to view their deals and performance</div></div>
         )}
       </div>
     </div>
@@ -1056,7 +1056,7 @@ function ContractsPage({deals,upd}){
       <div style={{marginBottom:16,fontSize:13,color:'var(--text3)'}}>DocuSign integration — contracts auto-generated on offer acceptance</div>
       {cd.map(d=>(
         <div key={d.id} className="cd cds" style={{display:'flex',alignItems:'center',gap:14,marginBottom:8}}>
-          <span style={{fontSize:20}}>📄</span>
+          <span style={{fontSize:20}}></span>
           <div style={{flex:1}}>
             <div style={{fontSize:13,fontWeight:500,color:'var(--text)'}}>{d.business}</div>
             <div style={{fontSize:11,color:'var(--text3)',fontFamily:'var(--mono)'}}>{d.id} · {d.broker}</div>
@@ -1066,10 +1066,10 @@ function ContractsPage({deals,upd}){
             <div style={{fontSize:10,color:'var(--text3)',fontFamily:'var(--mono)'}}>{d.factor}x buy / 1.499x sell</div>
           </div>
           <span className={'badge '+sc(d.status)}>{SL[d.status]}</span>
-          {d.status==='contracts'?<button className="btn bp bs">✉️ Send DocuSign</button>:<button className="btn bg bs">👁 View</button>}
+          {d.status==='contracts'?<button className="btn bp bs">✉️ Send DocuSign</button>:<button className="btn bg bs"> View</button>}
         </div>
       ))}
-      {!cd.length&&<div className="em"><div className="emi">📄</div><div className="emt">No contracts yet — approve deals to generate contracts</div></div>}
+      {!cd.length&&<div className="em"><div className="emi"></div><div className="emt">No contracts yet — approve deals to generate contracts</div></div>}
     </div>
   );
 }
@@ -1143,27 +1143,27 @@ function MerchantPortal({deals}){
               <div className="dl">Payoff amount</div>
               <div style={{fontSize:22,fontWeight:600,fontFamily:'var(--mono)',color:'var(--text)',margin:'6px 0'}}>{f$(po)}</div>
               <div style={{fontSize:11,color:'var(--text3)',marginBottom:10}}>includes 2% early payoff fee</div>
-              <button className="btn bg bs" style={{width:'100%'}}>📄 Request payoff letter</button>
+              <button className="btn bg bs" style={{width:'100%'}}> Request payoff letter</button>
             </div>
             <div className="cd">
               <div className="dl">Documents</div>
               <div style={{display:'flex',flexDirection:'column',gap:6,marginTop:8}}>
-                <button className="btn bg bs">📊 Balance letter</button>
-                <button className="btn bg bs">📋 Payment history</button>
-                <button className="btn bg bs">📄 Contract copy</button>
+                <button className="btn bg bs"> Balance letter</button>
+                <button className="btn bg bs"> Payment history</button>
+                <button className="btn bg bs"> Contract copy</button>
               </div>
             </div>
           </div>
           {sel.balance&&sel.amount&&sel.balance/sel.amount<=0.5&&(
             <div style={{padding:'12px 16px',background:'#1a2a1a',border:'1px solid #10b98140',borderRadius:'var(--radius-lg)',display:'flex',alignItems:'center',gap:12}}>
-              <span style={{fontSize:20}}>🎉</span>
+              <span style={{fontSize:20}}></span>
               <div style={{flex:1}}><div style={{fontSize:13,fontWeight:500,color:'var(--green)',marginBottom:2}}>Eligible for renewal!</div><div style={{fontSize:12,color:'var(--text3)'}}>You've paid over 50% — contact your broker to discuss renewal options</div></div>
               <button className="btn bsu bs">Request renewal</button>
             </div>
           )}
         </div>
       ):(
-        <div className="em"><div className="emi">🏪</div><div className="emt">No funded deals yet</div></div>
+        <div className="em"><div className="emi"></div><div className="emt">No funded deals yet</div></div>
       )}
     </div>
   );
@@ -1206,14 +1206,14 @@ function MktPage({type}){
 function SettingsPage(){
   const settings=[
     {icon:'⚖️',title:'Underwriting guidelines',desc:'Adjust risk score thresholds, position limits, revenue minimums'},
-    {icon:'🤖',title:'AI scrubber settings',desc:'Manage Claude API, tweak pricing rules, adjust factor rates'},
-    {icon:'📧',title:'Gmail integration',desc:'Inbox settings, deal detection keywords, OAuth credentials'},
-    {icon:'📊',title:'Google Sheets sync',desc:'Sheet IDs, sync frequency, column mapping'},
+    {icon:'',title:'AI scrubber settings',desc:'Manage Claude API, tweak pricing rules, adjust factor rates'},
+    {icon:'',title:'Gmail integration',desc:'Inbox settings, deal detection keywords, OAuth credentials'},
+    {icon:'',title:'Google Sheets sync',desc:'Sheet IDs, sync frequency, column mapping'},
     {icon:'✉️',title:'DocuSign contracts',desc:'Template ID, signing order, webhook configuration'},
-    {icon:'🏦',title:'NY Courts API',desc:'Credentials and search settings'},
-    {icon:'🔍',title:'DataMerch API',desc:'API key and match threshold'},
-    {icon:'🔔',title:'Notifications',desc:'Email alerts on deal status changes'},
-    {icon:'🔒',title:'Security',desc:'Password protection, user access, API keys'},
+    {icon:'',title:'NY Courts API',desc:'Credentials and search settings'},
+    {icon:'',title:'DataMerch API',desc:'API key and match threshold'},
+    {icon:'',title:'Notifications',desc:'Email alerts on deal status changes'},
+    {icon:'',title:'Security',desc:'Password protection, user access, API keys'},
   ];
   return(
     <div className="fa">
