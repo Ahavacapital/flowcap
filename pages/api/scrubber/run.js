@@ -17,10 +17,10 @@ export default async function handler(req, res) {
       apiKey: process.env.ANTHROPIC_API_KEY
     })
 
-    // Get deal from database
+    // Get deal with all notes (includes document parser results)
     const { data: deal, error: dealError } = await supabase
       .from('deals')
-      .select('*')
+      .select('*, deal_notes(*)')
       .eq('id', dealId)
       .single()
 
@@ -31,96 +31,124 @@ export default async function handler(req, res) {
     // Update status to scrubbing
     await supabase.from('deals').update({ status: 'scrubbing' }).eq('id', dealId)
 
+    // Get document parser results from notes if available
+    const parserNote = (deal.deal_notes || []).find(n =>
+      n.author === 'Document Parser' && n.body?.includes('Bank statement analysis')
+    )
+
+    // Build data summary from what we know
+    const knownData = {
+      monthly_revenue: deal.monthly_revenue || null,
+      avg_daily_balance: deal.avg_daily_balance || null,
+      positions: deal.positions || 0,
+      ny_court_result: deal.ny_court_result || 'unknown',
+      datamerch_result: deal.datamerch_result || 'unknown',
+      months_in_business: null,
+      negative_days_per_month: null,
+      nsf_count_per_month: null,
+      revenue_trend: null,
+      flags: []
+    }
+
+    // If we have parser notes, they are already saved in deal fields
+    // Build a comprehensive data string
+    const dataString = [
+      'Business: ' + deal.business_name,
+      'Amount Requested: ' + (deal.amount_requested ? '$' + deal.amount_requested.toLocaleString() : 'Unknown'),
+      'Monthly Revenue (from bank statements): ' + (knownData.monthly_revenue ? '$' + knownData.monthly_revenue.toLocaleString() : 'Unknown'),
+      'Average Daily Balance: ' + (knownData.avg_daily_balance ? '$' + knownData.avg_daily_balance.toLocaleString() : 'Unknown'),
+      'Estimated Existing Positions: ' + knownData.positions,
+      'NY Courts Result: ' + knownData.ny_court_result,
+      'DataMerch Result: ' + knownData.datamerch_result,
+      parserNote ? '\nBank Statement Analysis:\n' + parserNote.body : '',
+      deal.notes ? '\nSubmission Notes:\n' + deal.notes : ''
+    ].filter(Boolean).join('\n')
+
     const prompt = `You are an experienced MCA (Merchant Cash Advance) underwriter.
-Analyze this merchant application and return a structured JSON assessment.
+Analyze this deal using ALL available data and return a structured JSON assessment.
 
 UNDERWRITING GUIDELINES:
 
-PROHIBITED INDUSTRIES — AUTO DECLINE:
-- Adult entertainment (strip clubs, adult websites, escort services, pornography)
-- Cannabis / marijuana businesses
+PROHIBITED INDUSTRIES - AUTO DECLINE:
+- Adult entertainment (strip clubs, adult websites, escort services)
+- Cannabis / marijuana
 - Firearms dealers
 - Gambling / casinos
 
 POSITION POLICY:
-- We fund SECOND POSITION AND UP ONLY
-- We DO NOT fund first positions — auto decline if first position
-- We WILL fund merchants with existing defaults if current financials are satisfactory
+- We fund SECOND POSITION AND UP ONLY - NO first positions
+- Will fund merchants with existing defaults if current financials are satisfactory
+- Maximum 4 positions total (including ours)
 
-FINANCIAL MINIMUMS:
-- Minimum average monthly revenue: $35,000 (3 month average)
+FINANCIAL REQUIREMENTS:
+- Minimum average monthly revenue: $35,000 (3-month average)
 - Minimum average daily balance: $1,000
 - Maximum negative days: 7 per month
 - Minimum time in business: 6 months
 - Maximum cash withhold: 40% of gross monthly revenue
 
-INDUSTRY SPECIFIC RULES:
-- TRUCKING: Be MORE aggressive — shorter terms only, max 60 days, higher factor rates due to volatility
-- CONSTRUCTION: Be MORE aggressive — shorter terms only, max 90 days, higher factor rates due to seasonality
-- All other industries: standard terms up to 120 days maximum
+INDUSTRY SPECIFIC TERMS:
+- TRUCKING: Max term 60 days, more aggressive factor rates
+- CONSTRUCTION: Max term 90 days, more aggressive factor rates
+- All other industries: Max term 120 days
 
-PRICING RULES:
-- Our SELL RATE to broker is ALWAYS 1.499 factor — this is what the broker presents to merchant
-- Our BUY RATE (our cost) is what we calculate internally based on risk
-- Maximum term: 120 days for standard industries
-- Maximum term: 60 days for trucking
-- Maximum term: 90 days for construction
+PRICING (BUY RATES - our cost):
+- Risk score 80-100: buy rate 1.20x - 1.22x
+- Risk score 65-79:  buy rate 1.29x - 1.35x
+- Risk score 50-64:  buy rate 1.38x - 1.45x
+- Below 50: DECLINE
 
-BUY RATE PRICING (our internal cost):
-- Risk score 80-100: buy rate 1.20x - 1.25x, term 90-120 days
-- Risk score 65-79:  buy rate 1.29x - 1.35x, term 60-90 days
-- Risk score 50-64:  buy rate 1.38x - 1.45x, term 45-60 days
-- Risk score below 50: DECLINE
+SELL RATE: Always 1.499x (fixed - what broker presents to merchant)
 
-RISK SCORE FACTORS (out of 100):
-- Average monthly revenue vs $35k minimum (25pts): >$70k=25, $50-70k=20, $35-50k=15, <$35k=0
-- Average daily balance (20pts): >$5k=20, $2-5k=15, $1-2k=10, <$1k=0
-- Negative days per month (20pts): 0-2=20, 3-4=15, 5-7=10, >7=0
-- Position in stack (15pts): 2nd=15, 3rd=10, 4th+=5, 1st=AUTO DECLINE
+ADVANCE AMOUNT:
+- Max daily payment = monthly revenue x 40% / 21 business days
+- Approved amount = max daily payment x business days in term
+- Round to nearest $1,000
+
+DEAL DATA:
+${dataString}
+
+SCORING GUIDE (100 points total):
+- Monthly revenue vs $35k minimum (25pts): >$70k=25, $50-70k=20, $35-50k=15, <$35k=0
+- Avg daily balance (20pts): >$5k=20, $2-5k=15, $1-2k=10, <$1k=0
+- Negative days/month (20pts): 0-2=20, 3-4=15, 5-7=10, >7=0
+- Positions (15pts): 1st=AUTO DECLINE, 2nd=15, 3rd=10, 4th=5
 - Time in business (10pts): >2yr=10, 1-2yr=8, 6-12mo=5, <6mo=0
-- Revenue consistency (10pts): consistent=10, moderate variation=7, high variation=3
+- Revenue consistency (10pts): consistent=10, moderate=7, high_variation=3
 
-ADVANCE AMOUNT CALCULATION:
-- Maximum daily ACH = monthly revenue x 40% / 21 business days
-- Approved amount = max daily ACH x number of business days in term
-- Always round approved amount to nearest $1,000
+If financial data is missing or unknown, use conservative estimates and note uncertainty.
 
-DEAL INFORMATION:
-Business: ${deal.business_name}
-Contact: ${deal.contact_name || 'Unknown'}
-Amount Requested: $${deal.amount_requested?.toLocaleString() || 'Unknown'}
-Notes: ${deal.notes || 'None'}
-
-Respond ONLY with valid JSON, no markdown, no explanation:
+Respond ONLY with valid JSON, no markdown:
 {
   "risk_score": <0-100>,
   "decision": <"approve" or "decline">,
   "decline_reason": <string or null>,
   "industry": <detected industry>,
-  "is_prohibited_industry": <true or false>,
-  "position": <"first" or "second_plus" or "unknown">,
+  "is_prohibited": <true or false>,
+  "position": <"first", "second", "third", "fourth_plus", or "unknown">,
   "avg_monthly_revenue": <number or null>,
   "avg_daily_balance": <number or null>,
   "negative_days_per_month": <number or null>,
   "nsf_count_per_month": <number or null>,
   "months_in_business": <number or null>,
   "existing_positions": <number>,
-  "buy_rate": <our internal factor rate>,
+  "buy_rate": <our internal factor rate or null>,
   "sell_rate": 1.499,
-  "term_days": <number of days — max 120 standard, 60 trucking, 90 construction>,
+  "term_days": <number - max 120 standard, 60 trucking, 90 construction>,
   "approved_amount": <number or null>,
   "max_daily_payment": <number or null>,
-  "merchant_payback": <approved_amount x sell_rate>,
-  "our_payback": <approved_amount x buy_rate>,
-  "our_profit": <merchant_payback minus our_payback>,
+  "merchant_payback": <approved_amount x 1.499 or null>,
+  "our_cost": <approved_amount x buy_rate or null>,
+  "our_profit": <merchant_payback minus our_cost or null>,
+  "data_quality": <"full" if bank statements available, "partial" if some data, "limited" if email only>,
   "flags": [<array of risk flag strings>],
-  "conditions": [<array of approval condition strings>],
-  "summary": "<one sentence summary>"
+  "conditions": [<array of approval conditions>],
+  "summary": "<two sentence summary of the deal and decision>"
 }`
 
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 1024,
+      max_tokens: 1500,
       messages: [{ role: 'user', content: prompt }]
     })
 
@@ -129,51 +157,62 @@ Respond ONLY with valid JSON, no markdown, no explanation:
     const analysis = JSON.parse(clean)
 
     // Auto decline prohibited industries
-    if (analysis.is_prohibited_industry) {
+    if (analysis.is_prohibited) {
       analysis.decision = 'decline'
-      analysis.decline_reason = `Prohibited industry: ${analysis.industry}`
+      analysis.decline_reason = 'Prohibited industry: ' + analysis.industry
       analysis.risk_score = 0
+      analysis.approved_amount = null
     }
 
     // Auto decline first position
     if (analysis.position === 'first') {
       analysis.decision = 'decline'
-      analysis.decline_reason = 'First position only — we fund second position and up'
-      analysis.risk_score = Math.min(analysis.risk_score, 30)
+      analysis.decline_reason = 'First position only - we fund second position and up'
+      analysis.risk_score = Math.min(analysis.risk_score || 0, 25)
+      analysis.approved_amount = null
     }
 
     const approved = analysis.decision === 'approve' && analysis.risk_score >= 50
     const newStatus = approved ? 'offered' : 'declined'
+    const termMonths = analysis.term_days ? Math.ceil(analysis.term_days / 30) : null
 
-    // Convert term days to months for display
-    const termMonths = analysis.term_days ? Math.round(analysis.term_days / 30) : null
-
-    // Update deal with results
-    await supabase.from('deals').update({
+    // Update deal with all results
+    const updateData = {
       status:            newStatus,
       risk_score:        analysis.risk_score,
-      avg_daily_balance: analysis.avg_daily_balance,
-      monthly_revenue:   analysis.avg_monthly_revenue,
-      positions:         analysis.existing_positions || 0,
-      amount_approved:   analysis.approved_amount,
-      factor_rate:       analysis.buy_rate,
-      term_months:       termMonths,
       updated_at:        new Date().toISOString()
-    }).eq('id', dealId)
+    }
 
-    // Main scrub note
-    const noteBody = approved
-      ? `AI Scrub APPROVED — Risk: ${analysis.risk_score}/100 | Industry: ${analysis.industry} | Offer: $${analysis.approved_amount?.toLocaleString()} | Buy rate: ${analysis.buy_rate}x | Sell rate: 1.499x | Term: ${analysis.term_days} days | Our profit: $${analysis.our_profit?.toLocaleString()} | ${analysis.summary}`
-      : `AI Scrub DECLINED — Risk: ${analysis.risk_score}/100 | Industry: ${analysis.industry} | Reason: ${analysis.decline_reason} | ${analysis.summary}`
+    if (analysis.avg_monthly_revenue) updateData.monthly_revenue = analysis.avg_monthly_revenue
+    if (analysis.avg_daily_balance) updateData.avg_daily_balance = analysis.avg_daily_balance
+    if (analysis.existing_positions !== undefined) updateData.positions = analysis.existing_positions
+    if (analysis.approved_amount) updateData.amount_approved = analysis.approved_amount
+    if (analysis.buy_rate) updateData.factor_rate = analysis.buy_rate
+    if (termMonths) updateData.term_months = termMonths
+
+    await supabase.from('deals').update(updateData).eq('id', dealId)
+
+    // Add main scrub result note
+    const noteLines = [
+      approved
+        ? 'APPROVED - Risk score: ' + analysis.risk_score + '/100'
+        : 'DECLINED - Risk score: ' + analysis.risk_score + '/100',
+      approved ? 'Offer: $' + (analysis.approved_amount || 0).toLocaleString() + ' | Buy: ' + analysis.buy_rate + 'x | Sell: 1.499x | Term: ' + analysis.term_days + ' days' : '',
+      approved ? 'Profit: $' + (analysis.our_profit || 0).toLocaleString() + ' | Merchant payback: $' + (analysis.merchant_payback || 0).toLocaleString() : '',
+      !approved ? 'Decline reason: ' + analysis.decline_reason : '',
+      'Industry: ' + (analysis.industry || 'Unknown'),
+      'Data quality: ' + (analysis.data_quality || 'limited'),
+      analysis.summary
+    ].filter(Boolean).join('\n')
 
     await supabase.from('deal_notes').insert({
       deal_id:  dealId,
       author:   'AI Scrubber',
       category: approved ? 'approval' : 'risk',
-      body:     noteBody
+      body:     noteLines
     })
 
-    // Add flags
+    // Add individual flags as risk notes
     for (const flag of (analysis.flags || [])) {
       await supabase.from('deal_notes').insert({
         deal_id:  dealId,
@@ -183,7 +222,7 @@ Respond ONLY with valid JSON, no markdown, no explanation:
       })
     }
 
-    // Add conditions
+    // Add conditions if approved
     for (const condition of (analysis.conditions || [])) {
       await supabase.from('deal_notes').insert({
         deal_id:  dealId,
@@ -195,22 +234,22 @@ Respond ONLY with valid JSON, no markdown, no explanation:
 
     return res.status(200).json({
       dealId,
-      dealNumber:    deal.deal_number,
+      dealNumber:     deal.deal_number,
       approved,
-      riskScore:     analysis.risk_score,
-      decision:      analysis.decision,
-      declineReason: analysis.decline_reason,
-      industry:      analysis.industry,
+      riskScore:      analysis.risk_score,
+      decision:       analysis.decision,
+      declineReason:  analysis.decline_reason,
+      industry:       analysis.industry,
+      dataQuality:    analysis.data_quality,
       approvedAmount: analysis.approved_amount,
-      buyRate:       analysis.buy_rate,
-      sellRate:      1.499,
-      termDays:      analysis.term_days,
-      maxDailyPayment: analysis.max_daily_payment,
+      buyRate:        analysis.buy_rate,
+      sellRate:       1.499,
+      termDays:       analysis.term_days,
+      ourProfit:      analysis.our_profit,
       merchantPayback: analysis.merchant_payback,
-      ourProfit:     analysis.our_profit,
-      flags:         analysis.flags,
-      conditions:    analysis.conditions,
-      summary:       analysis.summary
+      flags:          analysis.flags,
+      conditions:     analysis.conditions,
+      summary:        analysis.summary
     })
 
   } catch (err) {
