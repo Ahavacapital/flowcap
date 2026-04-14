@@ -23,7 +23,6 @@ export default async function handler(req, res) {
 
     const gmail = google.gmail({ version: 'v1', auth: oauth2Client })
 
-    // Only pull unread emails from inbox
     const query = 'is:unread in:inbox to:' + process.env.GMAIL_USER_EMAIL + ' -category:promotions -category:social -category:updates'
 
     const { data: listData } = await gmail.users.messages.list({
@@ -35,35 +34,28 @@ export default async function handler(req, res) {
     const messages = listData.messages || []
     const results = []
 
-    // ─── INTERNAL DOMAINS — ALWAYS SKIP ──────────────────────
-    // These are your own company emails — never create deals from these
+    // Internal domains - never process
     const internalDomains = [
-      'yoyo.com',
-      'genesis.com',
-      'ahavacapital.com',
-      'ahava.com'
+      'yoyo.com', 'genesis.com', 'ahavacapital.com', 'ahava.com'
     ]
 
-    // ─── MARKETING/SPAM DOMAINS — ALWAYS SKIP ────────────────
+    // Spam/marketing domains - skip
     const spamDomains = [
       'canva.com', 'streak.com', 'linkedin.com', 'google.com',
-      'facebook.com', 'twitter.com', 'instagram.com', 'youtube.com',
-      'mailchimp.com', 'constantcontact.com', 'sendgrid.net',
-      'hubspot.com', 'salesforce.com', 'noreply', 'no-reply',
-      'donotreply', 'notifications', 'mailer', 'bounce',
-      'support@', 'info@', 'newsletter'
+      'facebook.com', 'twitter.com', 'mailchimp.com', 'sendgrid.net',
+      'constantcontact.com', 'hubspot.com', 'salesforce.com',
+      'noreply', 'no-reply', 'donotreply', 'mailer', 'bounce'
     ]
 
-    // ─── SUBJECT WORDS THAT INDICATE NON-DEAL EMAILS ─────────
+    // Non-deal subject words
     const skipSubjectWords = [
       'unsubscribe', 'newsletter', 'your account', 'verify your',
       'password reset', 'invoice for', 'receipt for',
       'order confirmation', 'webinar', 'meeting invite',
-      'calendar invite', 'out of office', 'auto-reply',
-      'delivery failed', 'bounce', 'welcome to'
+      'out of office', 'auto-reply', 'delivery failed', 'welcome to'
     ]
 
-    // ─── KEYWORDS THAT CONFIRM A REAL DEAL SUBMISSION ────────
+    // Deal keywords that must be present
     const dealKeywords = [
       'fw:', 'fwd:', 'new deal', 'new submission', 'new application',
       'submission', 'application', 'merchant', 'funding request',
@@ -71,13 +63,15 @@ export default async function handler(req, res) {
       'dba', 'restaurant', 'construction', 'trucking', 'medical',
       'dental', 'salon', 'auto', 'repair', 'catering', 'services',
       'group', 'associates', 'enterprises', 'solutions', 'management',
-      'bar ', 'grill', 'cafe', 'hotel', 'motel', 'gym', 'fitness',
+      'bar ', 'grill', 'cafe', 'hotel', 'gym', 'fitness',
       'plumbing', 'electric', 'hvac', 'roofing', 'landscaping'
     ]
 
+    const appUrl = process.env.NEXTAUTH_URL || 'https://flowcap-mca.vercel.app'
+
     for (const msg of messages) {
       try {
-        // Check if already processed
+        // Already processed?
         const { data: existing } = await supabase
           .from('gmail_sync_log')
           .select('id')
@@ -89,13 +83,15 @@ export default async function handler(req, res) {
           continue
         }
 
+        // Get message headers only first (fast)
         const { data: message } = await gmail.users.messages.get({
           userId: 'me',
           id: msg.id,
-          format: 'full'
+          format: 'metadata',
+          metadataHeaders: ['Subject', 'From', 'To', 'Date']
         })
 
-        const headers = message.payload.headers
+        const headers = message.payload?.headers || []
         const getHeader = (name) =>
           headers.find(h => h.name.toLowerCase() === name.toLowerCase())?.value || ''
 
@@ -107,55 +103,35 @@ export default async function handler(req, res) {
         const subjectLower = subject.toLowerCase()
         const fromLower    = fromEmail.toLowerCase()
 
-        // Skip internal company emails
-        const isInternal = internalDomains.some(d => fromLower.includes(d))
-        if (isInternal) {
-          await gmail.users.messages.modify({
-            userId: 'me',
-            id: msg.id,
-            requestBody: { removeLabelIds: ['UNREAD'] }
-          })
-          results.push({ messageId: msg.id, status: 'skipped', reason: 'internal email', from: fromEmail })
+        // Skip internal
+        if (internalDomains.some(d => fromLower.includes(d))) {
+          await gmail.users.messages.modify({ userId: 'me', id: msg.id, requestBody: { removeLabelIds: ['UNREAD'] } })
+          results.push({ messageId: msg.id, status: 'skipped', reason: 'internal', from: fromEmail })
           continue
         }
 
-        // Skip spam/marketing domains
-        const isSpam = spamDomains.some(d => fromLower.includes(d))
-        if (isSpam) {
-          await gmail.users.messages.modify({
-            userId: 'me',
-            id: msg.id,
-            requestBody: { removeLabelIds: ['UNREAD'] }
-          })
-          results.push({ messageId: msg.id, status: 'skipped', reason: 'spam domain', from: fromEmail })
+        // Skip spam
+        if (spamDomains.some(d => fromLower.includes(d))) {
+          await gmail.users.messages.modify({ userId: 'me', id: msg.id, requestBody: { removeLabelIds: ['UNREAD'] } })
+          results.push({ messageId: msg.id, status: 'skipped', reason: 'spam', from: fromEmail })
           continue
         }
 
-        // Skip non-deal subject lines
-        const isSubjectSkip = skipSubjectWords.some(w => subjectLower.includes(w))
-        if (isSubjectSkip) {
-          await gmail.users.messages.modify({
-            userId: 'me',
-            id: msg.id,
-            requestBody: { removeLabelIds: ['UNREAD'] }
-          })
+        // Skip non-deal subjects
+        if (skipSubjectWords.some(w => subjectLower.includes(w))) {
+          await gmail.users.messages.modify({ userId: 'me', id: msg.id, requestBody: { removeLabelIds: ['UNREAD'] } })
           results.push({ messageId: msg.id, status: 'skipped', reason: 'non-deal subject', subject })
           continue
         }
 
-        // Must match at least one deal keyword
-        const isDeal = dealKeywords.some(k => subjectLower.includes(k))
-        if (!isDeal) {
-          await gmail.users.messages.modify({
-            userId: 'me',
-            id: msg.id,
-            requestBody: { removeLabelIds: ['UNREAD'] }
-          })
+        // Must have deal keywords
+        if (!dealKeywords.some(k => subjectLower.includes(k))) {
+          await gmail.users.messages.modify({ userId: 'me', id: msg.id, requestBody: { removeLabelIds: ['UNREAD'] } })
           results.push({ messageId: msg.id, status: 'skipped', reason: 'no deal keywords', subject })
           continue
         }
 
-        // Extract business name from subject
+        // Clean business name from subject
         const businessName = subject
           .replace(/^FW:\s*/i, '')
           .replace(/^FWD:\s*/i, '')
@@ -167,16 +143,7 @@ export default async function handler(req, res) {
           .replace(/^Deal\s*[-:]\s*/i, '')
           .trim() || 'Unknown Business'
 
-        // Extract body text
-        const bodyText = extractBody(message.payload)
-
-        // Try to extract requested amount
-        const amountMatch = (subject + ' ' + bodyText).match(/\$?([\d,]+)(?:k|K)?\b/)
-        const amountStr = amountMatch?.[1]?.replace(/,/g, '') || ''
-        let amount = amountStr ? parseInt(amountStr) : null
-        if (amount && amount < 1000) amount = amount * 1000
-
-        // Get deal count for sequential deal number
+        // Get deal count for deal number
         const { count } = await supabase
           .from('deals')
           .select('*', { count: 'exact', head: true })
@@ -199,7 +166,7 @@ export default async function handler(req, res) {
             business_name:    businessName,
             contact_name:     fromName,
             contact_email:    fromEmail,
-            amount_requested: amount,
+            amount_requested: null,
             status:           'new',
             source:           'email',
             gmail_thread_id:  message.threadId,
@@ -209,58 +176,6 @@ export default async function handler(req, res) {
           .single()
 
         if (dealError) throw dealError
-
-        // Save attachments to Supabase storage
-        const attachments = []
-        collectAttachments(message.payload, attachments)
-        let savedDocs = 0
-        let hasBankStatements = false
-
-        for (const att of attachments) {
-          try {
-            let data = att.body?.data
-            if (!data && att.body?.attachmentId) {
-              const { data: fetched } = await gmail.users.messages.attachments.get({
-                userId: 'me',
-                messageId: message.id,
-                id: att.body.attachmentId
-              })
-              data = fetched?.data
-            }
-            if (!data) continue
-
-            const buffer   = Buffer.from(data, 'base64')
-            const filename = att.filename || 'attachment-' + Date.now()
-            const mimeType = att.mimeType || 'application/octet-stream'
-            const path     = 'deals/' + deal.id + '/' + filename
-            const docType  = guessDocType(filename, mimeType)
-
-            if (docType === 'bank_statement') hasBankStatements = true
-
-            const { error: uploadError } = await supabase.storage
-              .from('deal-documents')
-              .upload(path, buffer, { contentType: mimeType, upsert: true })
-
-            if (uploadError) {
-              console.error('Upload error:', filename, uploadError.message)
-              continue
-            }
-
-            await supabase.from('documents').insert({
-              deal_id:      deal.id,
-              name:         filename,
-              doc_type:     docType,
-              storage_path: path,
-              mime_type:    mimeType,
-              size_bytes:   buffer.length,
-              source:       'email'
-            })
-
-            savedDocs++
-          } catch (attErr) {
-            console.error('Attachment error:', attErr.message)
-          }
-        }
 
         // Log sync
         await supabase.from('gmail_sync_log').insert({
@@ -272,58 +187,40 @@ export default async function handler(req, res) {
           processed:        true
         })
 
-        // Mark email as read
+        // Mark as read
         await gmail.users.messages.modify({
           userId: 'me',
           id: msg.id,
           requestBody: { removeLabelIds: ['UNREAD'] }
         })
 
-        const appUrl = process.env.NEXTAUTH_URL || 'https://flowcap-mca.vercel.app'
+        // Fire scrubber async - don't wait for it
+        fetch(appUrl + '/api/scrubber/run', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dealId: deal.id })
+        }).catch(e => console.error('Scrubber fire failed:', e.message))
 
-        // Auto-parse bank statements if found
-        if (hasBankStatements && savedDocs > 0) {
-          try {
-            await fetch(appUrl + '/api/documents/parse', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ dealId: deal.id })
-            })
-          } catch (e) {
-            console.error('Document parse trigger failed:', e.message)
-          }
-        }
-
-        // Auto-scrub deal
-        try {
-          await fetch(appUrl + '/api/scrubber/run', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ dealId: deal.id })
-          })
-        } catch (e) {
-          console.error('Scrubber trigger failed:', e.message)
-        }
+        // Save attachments async in background - don't wait
+        saveAttachmentsAsync(gmail, message.id, deal.id, supabase, appUrl)
 
         results.push({
-          messageId:        msg.id,
+          messageId:    msg.id,
           dealNumber,
           businessName,
-          from:             fromEmail,
-          broker:           broker?.name || 'Unknown broker',
-          attachmentsSaved: savedDocs,
-          hasBankStatements,
-          status:           'created'
+          from:         fromEmail,
+          broker:       broker?.name || 'Unknown broker',
+          status:       'created'
         })
 
       } catch (err) {
-        console.error('Failed to process message', msg.id, ':', err.message)
+        console.error('Failed to process', msg.id, ':', err.message)
         results.push({ messageId: msg.id, status: 'error', error: err.message })
         try {
           await supabase.from('gmail_sync_log').insert({
             gmail_message_id: msg.id,
-            processed:        false,
-            error:            err.message
+            processed: false,
+            error: err.message
           })
         } catch (e) {}
       }
@@ -331,9 +228,9 @@ export default async function handler(req, res) {
 
     return res.json({
       processed: results.length,
-      created: results.filter(r => r.status === 'created').length,
-      skipped: results.filter(r => r.status === 'skipped').length,
-      errors: results.filter(r => r.status === 'error').length,
+      created:   results.filter(r => r.status === 'created').length,
+      skipped:   results.filter(r => r.status === 'skipped').length,
+      errors:    results.filter(r => r.status === 'error').length,
       results
     })
 
@@ -343,22 +240,76 @@ export default async function handler(req, res) {
   }
 }
 
-function extractBody(payload) {
-  if (payload.body?.data) {
-    return Buffer.from(payload.body.data, 'base64').toString('utf-8')
-  }
-  if (payload.parts) {
-    for (const part of payload.parts) {
-      if (part.mimeType === 'text/plain' && part.body?.data) {
-        return Buffer.from(part.body.data, 'base64').toString('utf-8')
+// Runs in background - saves attachments then triggers document parser
+async function saveAttachmentsAsync(gmail, messageId, dealId, supabase, appUrl) {
+  try {
+    const { data: fullMessage } = await gmail.users.messages.get({
+      userId: 'me',
+      id: messageId,
+      format: 'full'
+    })
+
+    const attachments = []
+    collectAttachments(fullMessage.payload, attachments)
+
+    let savedDocs = 0
+    let hasBankStatements = false
+
+    for (const att of attachments) {
+      try {
+        let data = att.body?.data
+        if (!data && att.body?.attachmentId) {
+          const { data: fetched } = await gmail.users.messages.attachments.get({
+            userId: 'me',
+            messageId,
+            id: att.body.attachmentId
+          })
+          data = fetched?.data
+        }
+        if (!data) continue
+
+        const buffer   = Buffer.from(data, 'base64')
+        const filename = att.filename || 'attachment-' + Date.now()
+        const mimeType = att.mimeType || 'application/octet-stream'
+        const path     = 'deals/' + dealId + '/' + filename
+        const docType  = guessDocType(filename, mimeType)
+
+        if (docType === 'bank_statement') hasBankStatements = true
+
+        const { error: uploadError } = await supabase.storage
+          .from('deal-documents')
+          .upload(path, buffer, { contentType: mimeType, upsert: true })
+
+        if (uploadError) continue
+
+        await supabase.from('documents').insert({
+          deal_id:      dealId,
+          name:         filename,
+          doc_type:     docType,
+          storage_path: path,
+          mime_type:    mimeType,
+          size_bytes:   buffer.length,
+          source:       'email'
+        })
+
+        savedDocs++
+      } catch (e) {
+        console.error('Attachment save error:', e.message)
       }
     }
-    for (const part of payload.parts) {
-      const nested = extractBody(part)
-      if (nested) return nested
+
+    // Trigger document parser if we have bank statements
+    if (hasBankStatements && savedDocs > 0) {
+      await fetch(appUrl + '/api/documents/parse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dealId })
+      }).catch(e => console.error('Parse trigger failed:', e.message))
     }
+
+  } catch (err) {
+    console.error('saveAttachmentsAsync error:', err.message)
   }
-  return ''
 }
 
 function collectAttachments(payload, out) {
@@ -372,15 +323,12 @@ function collectAttachments(payload, out) {
 
 function guessDocType(filename, mimeType) {
   const f = filename.toLowerCase()
-  if (
-    f.includes('statement') || f.includes('bank') ||
-    f.includes('checking') || f.includes('savings') ||
-    f.includes('account') || f.endsWith('.pdf')
-  ) return 'bank_statement'
+  if (f.includes('statement') || f.includes('bank') || f.includes('checking') ||
+      f.includes('savings') || f.includes('account') || f.endsWith('.pdf') ||
+      mimeType === 'application/pdf') return 'bank_statement'
   if (f.includes('void') || f.includes('check')) return 'voided_check'
-  if (f.includes(' id') || f.includes('license') || f.includes('passport') || f.includes('dl')) return 'photo_id'
-  if (f.includes('contract') || f.includes('agreement') || f.includes('signed')) return 'contract'
-  if (f.includes('tax') || f.includes('1099') || f.includes('w2') || f.includes('w-2')) return 'tax_document'
-  if (mimeType === 'application/pdf') return 'bank_statement'
+  if (f.includes(' id') || f.includes('license') || f.includes('passport')) return 'photo_id'
+  if (f.includes('contract') || f.includes('agreement')) return 'contract'
+  if (f.includes('tax') || f.includes('1099') || f.includes('w2')) return 'tax_document'
   return 'other'
 }
