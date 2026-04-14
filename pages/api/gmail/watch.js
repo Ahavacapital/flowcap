@@ -23,23 +23,32 @@ export default async function handler(req, res) {
 
     const gmail = google.gmail({ version: 'v1', auth: oauth2Client })
 
-    const query = 'is:unread in:inbox to:' + process.env.GMAIL_USER_EMAIL + ' -category:promotions -category:social -category:updates'
+    // Only last 7 days, unread, inbox only — prevents timeout on large mailboxes
+    const query = [
+      'is:unread',
+      'in:inbox',
+      'to:' + process.env.GMAIL_USER_EMAIL,
+      'newer_than:7d',
+      '-category:promotions',
+      '-category:social',
+      '-category:updates'
+    ].join(' ')
 
     const { data: listData } = await gmail.users.messages.list({
       userId: 'me',
       q: query,
-      maxResults: 20,
+      maxResults: 10,
     })
 
     const messages = listData.messages || []
     const results = []
 
-    // Internal domains - never process
+    // Internal company domains - always skip
     const internalDomains = [
       'yoyo.com', 'genesis.com', 'ahavacapital.com', 'ahava.com'
     ]
 
-    // Spam/marketing domains - skip
+    // Spam/marketing - always skip
     const spamDomains = [
       'canva.com', 'streak.com', 'linkedin.com', 'google.com',
       'facebook.com', 'twitter.com', 'mailchimp.com', 'sendgrid.net',
@@ -55,7 +64,7 @@ export default async function handler(req, res) {
       'out of office', 'auto-reply', 'delivery failed', 'welcome to'
     ]
 
-    // Deal keywords that must be present
+    // Must have at least one of these to be a deal
     const dealKeywords = [
       'fw:', 'fwd:', 'new deal', 'new submission', 'new application',
       'submission', 'application', 'merchant', 'funding request',
@@ -83,7 +92,7 @@ export default async function handler(req, res) {
           continue
         }
 
-        // Get message headers only first (fast)
+        // Get headers only - very fast
         const { data: message } = await gmail.users.messages.get({
           userId: 'me',
           id: msg.id,
@@ -92,46 +101,44 @@ export default async function handler(req, res) {
         })
 
         const headers = message.payload?.headers || []
-        const getHeader = (name) =>
-          headers.find(h => h.name.toLowerCase() === name.toLowerCase())?.value || ''
+        const getH = (n) => headers.find(h => h.name.toLowerCase() === n.toLowerCase())?.value || ''
 
-        const subject   = getHeader('Subject')
-        const fromRaw   = getHeader('From')
+        const subject   = getH('Subject')
+        const fromRaw   = getH('From')
         const fromEmail = fromRaw.match(/<(.+)>/)?.[1] || fromRaw.trim()
         const fromName  = fromRaw.match(/^(.+?)\s*</)?.[1]?.trim() || fromEmail
-
-        const subjectLower = subject.toLowerCase()
-        const fromLower    = fromEmail.toLowerCase()
+        const subjectLo = subject.toLowerCase()
+        const fromLo    = fromEmail.toLowerCase()
 
         // Skip internal
-        if (internalDomains.some(d => fromLower.includes(d))) {
-          await gmail.users.messages.modify({ userId: 'me', id: msg.id, requestBody: { removeLabelIds: ['UNREAD'] } })
-          results.push({ messageId: msg.id, status: 'skipped', reason: 'internal', from: fromEmail })
+        if (internalDomains.some(d => fromLo.includes(d))) {
+          await gmail.users.messages.modify({ userId:'me', id:msg.id, requestBody:{ removeLabelIds:['UNREAD'] } })
+          results.push({ messageId:msg.id, status:'skipped', reason:'internal', from:fromEmail })
           continue
         }
 
         // Skip spam
-        if (spamDomains.some(d => fromLower.includes(d))) {
-          await gmail.users.messages.modify({ userId: 'me', id: msg.id, requestBody: { removeLabelIds: ['UNREAD'] } })
-          results.push({ messageId: msg.id, status: 'skipped', reason: 'spam', from: fromEmail })
+        if (spamDomains.some(d => fromLo.includes(d))) {
+          await gmail.users.messages.modify({ userId:'me', id:msg.id, requestBody:{ removeLabelIds:['UNREAD'] } })
+          results.push({ messageId:msg.id, status:'skipped', reason:'spam', from:fromEmail })
           continue
         }
 
         // Skip non-deal subjects
-        if (skipSubjectWords.some(w => subjectLower.includes(w))) {
-          await gmail.users.messages.modify({ userId: 'me', id: msg.id, requestBody: { removeLabelIds: ['UNREAD'] } })
-          results.push({ messageId: msg.id, status: 'skipped', reason: 'non-deal subject', subject })
+        if (skipSubjectWords.some(w => subjectLo.includes(w))) {
+          await gmail.users.messages.modify({ userId:'me', id:msg.id, requestBody:{ removeLabelIds:['UNREAD'] } })
+          results.push({ messageId:msg.id, status:'skipped', reason:'non-deal subject', subject })
           continue
         }
 
-        // Must have deal keywords
-        if (!dealKeywords.some(k => subjectLower.includes(k))) {
-          await gmail.users.messages.modify({ userId: 'me', id: msg.id, requestBody: { removeLabelIds: ['UNREAD'] } })
-          results.push({ messageId: msg.id, status: 'skipped', reason: 'no deal keywords', subject })
+        // Must match deal keywords
+        if (!dealKeywords.some(k => subjectLo.includes(k))) {
+          await gmail.users.messages.modify({ userId:'me', id:msg.id, requestBody:{ removeLabelIds:['UNREAD'] } })
+          results.push({ messageId:msg.id, status:'skipped', reason:'no deal keywords', subject })
           continue
         }
 
-        // Clean business name from subject
+        // Clean business name
         const businessName = subject
           .replace(/^FW:\s*/i, '')
           .replace(/^FWD:\s*/i, '')
@@ -143,21 +150,21 @@ export default async function handler(req, res) {
           .replace(/^Deal\s*[-:]\s*/i, '')
           .trim() || 'Unknown Business'
 
-        // Get deal count for deal number
+        // Get deal count for number
         const { count } = await supabase
           .from('deals')
-          .select('*', { count: 'exact', head: true })
+          .select('*', { count:'exact', head:true })
 
         const dealNumber = 'D-' + String((count || 0) + 1).padStart(4, '0')
 
-        // Look up broker by email
+        // Look up broker
         const { data: broker } = await supabase
           .from('brokers')
           .select('id, name')
           .ilike('email', fromEmail.toLowerCase())
           .single()
 
-        // Create deal in Supabase
+        // Create deal
         const { data: deal, error: dealError } = await supabase
           .from('deals')
           .insert({
@@ -194,15 +201,16 @@ export default async function handler(req, res) {
           requestBody: { removeLabelIds: ['UNREAD'] }
         })
 
-        // Fire scrubber async - don't wait for it
+        // Fire scrubber without waiting
         fetch(appUrl + '/api/scrubber/run', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ dealId: deal.id })
         }).catch(e => console.error('Scrubber fire failed:', e.message))
 
-        // Save attachments async in background - don't wait
-        saveAttachmentsAsync(gmail, message.id, deal.id, supabase, appUrl)
+        // Save attachments in background without waiting
+        saveAttachments(gmail, message.id, deal.id, supabase, appUrl)
+          .catch(e => console.error('Attachment save failed:', e.message))
 
         results.push({
           messageId:    msg.id,
@@ -214,7 +222,7 @@ export default async function handler(req, res) {
         })
 
       } catch (err) {
-        console.error('Failed to process', msg.id, ':', err.message)
+        console.error('Error processing', msg.id, ':', err.message)
         results.push({ messageId: msg.id, status: 'error', error: err.message })
         try {
           await supabase.from('gmail_sync_log').insert({
@@ -240,92 +248,70 @@ export default async function handler(req, res) {
   }
 }
 
-// Runs in background - saves attachments then triggers document parser
-async function saveAttachmentsAsync(gmail, messageId, dealId, supabase, appUrl) {
-  try {
-    const { data: fullMessage } = await gmail.users.messages.get({
-      userId: 'me',
-      id: messageId,
-      format: 'full'
-    })
+async function saveAttachments(gmail, messageId, dealId, supabase, appUrl) {
+  const { data: fullMsg } = await gmail.users.messages.get({
+    userId: 'me', id: messageId, format: 'full'
+  })
 
-    const attachments = []
-    collectAttachments(fullMessage.payload, attachments)
+  const atts = []
+  collectAtts(fullMsg.payload, atts)
 
-    let savedDocs = 0
-    let hasBankStatements = false
+  let saved = 0
+  let hasBankStatements = false
 
-    for (const att of attachments) {
-      try {
-        let data = att.body?.data
-        if (!data && att.body?.attachmentId) {
-          const { data: fetched } = await gmail.users.messages.attachments.get({
-            userId: 'me',
-            messageId,
-            id: att.body.attachmentId
-          })
-          data = fetched?.data
-        }
-        if (!data) continue
-
-        const buffer   = Buffer.from(data, 'base64')
-        const filename = att.filename || 'attachment-' + Date.now()
-        const mimeType = att.mimeType || 'application/octet-stream'
-        const path     = 'deals/' + dealId + '/' + filename
-        const docType  = guessDocType(filename, mimeType)
-
-        if (docType === 'bank_statement') hasBankStatements = true
-
-        const { error: uploadError } = await supabase.storage
-          .from('deal-documents')
-          .upload(path, buffer, { contentType: mimeType, upsert: true })
-
-        if (uploadError) continue
-
-        await supabase.from('documents').insert({
-          deal_id:      dealId,
-          name:         filename,
-          doc_type:     docType,
-          storage_path: path,
-          mime_type:    mimeType,
-          size_bytes:   buffer.length,
-          source:       'email'
+  for (const att of atts) {
+    try {
+      let data = att.body?.data
+      if (!data && att.body?.attachmentId) {
+        const { data: fetched } = await gmail.users.messages.attachments.get({
+          userId: 'me', messageId, id: att.body.attachmentId
         })
-
-        savedDocs++
-      } catch (e) {
-        console.error('Attachment save error:', e.message)
+        data = fetched?.data
       }
-    }
+      if (!data) continue
 
-    // Trigger document parser if we have bank statements
-    if (hasBankStatements && savedDocs > 0) {
-      await fetch(appUrl + '/api/documents/parse', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dealId })
-      }).catch(e => console.error('Parse trigger failed:', e.message))
-    }
+      const buf      = Buffer.from(data, 'base64')
+      const filename = att.filename || 'file-' + Date.now()
+      const mime     = att.mimeType || 'application/octet-stream'
+      const path     = 'deals/' + dealId + '/' + filename
+      const docType  = guessType(filename, mime)
 
-  } catch (err) {
-    console.error('saveAttachmentsAsync error:', err.message)
+      if (docType === 'bank_statement') hasBankStatements = true
+
+      const { error } = await supabase.storage
+        .from('deal-documents')
+        .upload(path, buf, { contentType: mime, upsert: true })
+
+      if (error) continue
+
+      await supabase.from('documents').insert({
+        deal_id: dealId, name: filename, doc_type: docType,
+        storage_path: path, mime_type: mime, size_bytes: buf.length, source: 'email'
+      })
+      saved++
+    } catch (e) {
+      console.error('Att error:', e.message)
+    }
+  }
+
+  if (hasBankStatements && saved > 0) {
+    await fetch(appUrl + '/api/documents/parse', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dealId })
+    }).catch(e => console.error('Parse trigger failed:', e.message))
   }
 }
 
-function collectAttachments(payload, out) {
-  if (payload.filename && payload.filename.length > 0 && payload.body) {
-    out.push(payload)
-  }
-  if (payload.parts) {
-    payload.parts.forEach(p => collectAttachments(p, out))
-  }
+function collectAtts(payload, out) {
+  if (payload.filename && payload.filename.length > 0 && payload.body) out.push(payload)
+  if (payload.parts) payload.parts.forEach(p => collectAtts(p, out))
 }
 
-function guessDocType(filename, mimeType) {
+function guessType(filename, mime) {
   const f = filename.toLowerCase()
   if (f.includes('statement') || f.includes('bank') || f.includes('checking') ||
-      f.includes('savings') || f.includes('account') || f.endsWith('.pdf') ||
-      mimeType === 'application/pdf') return 'bank_statement'
+      f.includes('savings') || f.endsWith('.pdf') || mime === 'application/pdf') return 'bank_statement'
   if (f.includes('void') || f.includes('check')) return 'voided_check'
   if (f.includes(' id') || f.includes('license') || f.includes('passport')) return 'photo_id'
   if (f.includes('contract') || f.includes('agreement')) return 'contract'
