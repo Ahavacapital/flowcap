@@ -23,29 +23,32 @@ export default async function handler(req, res) {
 
     const sheets = google.sheets({ version: 'v4', auth: oauth2Client })
     const spreadsheetId = process.env.SHEETS_DEALS_ID
-
     const results = {}
 
-    // ─── CRM SUBS TAB (All Deals) ─────────────────────────────
-    try {
-      const { data: deals } = await supabase
-        .from('deals')
-        .select('*, broker:brokers(name), notes:deal_notes(category, body, author, created_at)')
-        .order('submitted_at', { ascending: false })
-        .limit(2000)
+    // Fetch all deals once
+    const { data: allDeals } = await supabase
+      .from('deals')
+      .select('*, broker:brokers(name), deal_notes(category, body, author, created_at)')
+      .order('submitted_at', { ascending: false })
+      .limit(2000)
 
+    const deals = allDeals || []
+
+    // ─── TAB 1: SUBMISSIONS (all deals) ──────────────────────
+    try {
       const headers = [
         'Deal #', 'Business Name', 'Contact Name', 'Contact Email',
         'Broker / ISO', 'Amount Requested', 'Amount Approved',
-        'Buy Rate', 'Sell Rate (1.499)', 'Term (days)',
-        'Status', 'Risk Score', 'Monthly Revenue', 'Avg Daily Balance',
-        'Positions', 'NY Courts', 'DataMerch', 'Industry',
-        'Submitted Date', 'Last Updated', 'Notes'
+        'Buy Rate', 'Sell Rate', 'Term (days)', 'Status',
+        'Risk Score', 'Monthly Revenue', 'Avg Daily Balance',
+        'Positions', 'NY Courts', 'DataMerch',
+        'Submitted Date', 'Last Updated', 'Latest Note'
       ]
 
-      const rows = (deals || []).map(d => {
+      const rows = deals.map(d => {
         const termDays = d.term_months ? d.term_months * 30 : ''
-        const lastNote = (d.notes || []).slice(-1)[0]
+        const notes = d.deal_notes || []
+        const lastNote = notes.sort((a,b) => new Date(b.created_at) - new Date(a.created_at))[0]
         return [
           d.deal_number || '',
           d.business_name || '',
@@ -64,56 +67,49 @@ export default async function handler(req, res) {
           d.positions || 0,
           d.ny_court_result || '',
           d.datamerch_result || '',
-          '',
           d.submitted_at ? new Date(d.submitted_at).toLocaleDateString() : '',
           d.updated_at ? new Date(d.updated_at).toLocaleDateString() : '',
-          lastNote ? lastNote.body?.slice(0, 300) : (d.notes_text || '')
+          lastNote ? lastNote.body?.slice(0, 200) : ''
         ]
       })
 
       await sheets.spreadsheets.values.clear({
         spreadsheetId,
-        range: 'CRM SUBS!A1:U5000'
+        range: 'Submissions!A1:T5000'
       })
-
       await sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: 'CRM SUBS!A1',
+        range: 'Submissions!A1',
         valueInputOption: 'USER_ENTERED',
         requestBody: { values: [headers, ...rows] }
       })
 
-      results.crmSubs = { rows: rows.length, status: 'success' }
+      results.submissions = { rows: rows.length, status: 'success' }
     } catch (err) {
-      results.crmSubs = { status: 'error', error: err.message }
+      results.submissions = { status: 'error', error: err.message }
     }
 
-    // ─── FUNDED DEALS TAB ─────────────────────────────────────
+    // ─── TAB 2: APPROVED DEALS ────────────────────────────────
     try {
-      const { data: funded } = await supabase
-        .from('deals')
-        .select('*, broker:brokers(name)')
-        .eq('status', 'funded')
-        .order('funded_at', { ascending: false })
+      const approved = deals.filter(d =>
+        ['offered', 'docs', 'contracts', 'bankverify'].includes(d.status)
+      )
 
       const headers = [
-        'Deal #', 'Business Name', 'Contact', 'ISO / Broker',
-        'Funded Amount', 'Buy Rate', 'Sell Rate',
-        'Term (days)', 'Merchant Payback', 'Our Payback',
-        'Our Profit', 'Current Balance', '% Paid',
-        'Daily Payment', 'Funded Date', 'Renewal Eligible'
+        'Deal #', 'Business Name', 'Contact', 'Broker / ISO',
+        'Amount Approved', 'Buy Rate', 'Sell Rate (1.499)',
+        'Term (days)', 'Merchant Payback', 'Our Cost',
+        'Our Profit', 'Status', 'Risk Score',
+        'Submitted Date', 'Conditions / Notes'
       ]
 
-      const rows = (funded || []).map(d => {
+      const rows = approved.map(d => {
         const termDays = d.term_months ? d.term_months * 30 : 0
         const merchantPayback = d.amount_approved ? Math.round(d.amount_approved * 1.499) : ''
-        const ourPayback = d.amount_approved && d.factor_rate ? Math.round(d.amount_approved * d.factor_rate) : ''
-        const ourProfit = merchantPayback && ourPayback ? merchantPayback - ourPayback : ''
-        const dailyPay = merchantPayback && termDays ? Math.round(merchantPayback / termDays) : ''
-        const pctPaid = d.amount_approved && d.balance
-          ? Math.round((1 - d.balance / d.amount_approved) * 100) + '%' : ''
-        const renewal = d.amount_approved && d.balance
-          ? (d.balance / d.amount_approved <= 0.5 ? 'YES' : 'No') : ''
+        const ourCost = d.amount_approved && d.factor_rate ? Math.round(d.amount_approved * d.factor_rate) : ''
+        const ourProfit = merchantPayback && ourCost ? merchantPayback - ourCost : ''
+        const notes = d.deal_notes || []
+        const conditions = notes.filter(n => n.category === 'condition').map(n => n.body).join(' | ')
         return [
           d.deal_number || '',
           d.business_name || '',
@@ -124,7 +120,64 @@ export default async function handler(req, res) {
           1.499,
           termDays,
           merchantPayback,
-          ourPayback,
+          ourCost,
+          ourProfit,
+          d.status || '',
+          d.risk_score || '',
+          d.submitted_at ? new Date(d.submitted_at).toLocaleDateString() : '',
+          conditions || ''
+        ]
+      })
+
+      await sheets.spreadsheets.values.clear({
+        spreadsheetId,
+        range: 'Approved Deals!A1:O5000'
+      })
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: 'Approved Deals!A1',
+        valueInputOption: 'USER_ENTERED',
+        requestBody: { values: [headers, ...rows] }
+      })
+
+      results.approvedDeals = { rows: rows.length, status: 'success' }
+    } catch (err) {
+      results.approvedDeals = { status: 'error', error: err.message }
+    }
+
+    // ─── TAB 3: FUNDED DEALS ──────────────────────────────────
+    try {
+      const funded = deals.filter(d => d.status === 'funded')
+
+      const headers = [
+        'Deal #', 'Business Name', 'Contact', 'Broker / ISO',
+        'Funded Amount', 'Buy Rate', 'Sell Rate',
+        'Term (days)', 'Merchant Payback', 'Our Cost',
+        'Our Profit', 'Current Balance', '% Paid',
+        'Daily Payment', 'Funded Date', 'Renewal Eligible'
+      ]
+
+      const rows = funded.map(d => {
+        const termDays = d.term_months ? d.term_months * 30 : 0
+        const merchantPayback = d.amount_approved ? Math.round(d.amount_approved * 1.499) : ''
+        const ourCost = d.amount_approved && d.factor_rate ? Math.round(d.amount_approved * d.factor_rate) : ''
+        const ourProfit = merchantPayback && ourCost ? merchantPayback - ourCost : ''
+        const dailyPay = merchantPayback && termDays ? Math.round(merchantPayback / termDays) : ''
+        const pctPaid = d.amount_approved && d.balance
+          ? Math.round((1 - d.balance / d.amount_approved) * 100) + '%' : ''
+        const renewal = d.amount_approved && d.balance
+          ? (d.balance / d.amount_approved <= 0.5 ? 'YES ✓' : 'No') : ''
+        return [
+          d.deal_number || '',
+          d.business_name || '',
+          d.contact_name || '',
+          d.broker?.name || '',
+          d.amount_approved || '',
+          d.factor_rate || '',
+          1.499,
+          termDays,
+          merchantPayback,
+          ourCost,
           ourProfit,
           d.balance || '',
           pctPaid,
@@ -138,7 +191,6 @@ export default async function handler(req, res) {
         spreadsheetId,
         range: 'Funded Deals!A1:P5000'
       })
-
       await sheets.spreadsheets.values.update({
         spreadsheetId,
         range: 'Funded Deals!A1',
@@ -151,23 +203,18 @@ export default async function handler(req, res) {
       results.fundedDeals = { status: 'error', error: err.message }
     }
 
-    // ─── ISO PERFORMANCE TAB ──────────────────────────────────
+    // ─── TAB 4: ISO PERFORMANCE ───────────────────────────────
     try {
       const { data: brokers } = await supabase
         .from('brokers')
         .select('*')
         .order('name')
 
-      const { data: allDeals } = await supabase
-        .from('deals')
-        .select('broker_id, status, amount_approved, amount_requested')
-
       const stats = {}
-      for (const d of allDeals || []) {
+      for (const d of deals) {
         if (!d.broker_id) continue
         if (!stats[d.broker_id]) stats[d.broker_id] = {
-          total: 0, funded: 0, declined: 0,
-          volume: 0, requested: 0
+          total: 0, funded: 0, declined: 0, volume: 0, requested: 0
         }
         stats[d.broker_id].total++
         stats[d.broker_id].requested += d.amount_requested || 0
@@ -209,7 +256,6 @@ export default async function handler(req, res) {
         spreadsheetId,
         range: 'ISO Performance!A1:M5000'
       })
-
       await sheets.spreadsheets.values.update({
         spreadsheetId,
         range: 'ISO Performance!A1',
@@ -224,7 +270,7 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       success: true,
-      message: 'Sheets synced successfully',
+      message: 'All 4 tabs synced successfully',
       results
     })
 
