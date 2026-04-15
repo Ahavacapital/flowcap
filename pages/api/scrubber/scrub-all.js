@@ -12,74 +12,32 @@ export default async function handler(req, res) {
 
     const appUrl = process.env.NEXTAUTH_URL || 'https://flowcap-mca.vercel.app'
 
-    // Get all deals that haven't been scrubbed yet
-    const { data: deals } = await supabase
+    // Get next batch of unscubbed deals
+    const { data: deals, count } = await supabase
       .from('deals')
-      .select('id, deal_number, business_name, status')
+      .select('id, deal_number, business_name, status', { count: 'exact' })
       .in('status', ['new', 'scrubbing'])
       .order('submitted_at', { ascending: false })
-      .limit(50)
+      .limit(5)
 
     if (!deals || deals.length === 0) {
-      return res.json({ message: 'No deals to scrub', count: 0 })
+      return res.json({ message: 'All deals already scrubbed!', remaining: 0 })
     }
 
-    const results = []
-
+    // Fire scrubber for each deal without waiting
     for (const deal of deals) {
-      try {
-        // First check if there are documents to parse
-        const { data: docs } = await supabase
-          .from('documents')
-          .select('id')
-          .eq('deal_id', deal.id)
-          .limit(1)
-
-        // Parse documents first if available
-        if (docs && docs.length > 0) {
-          await fetch(appUrl + '/api/documents/parse', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ dealId: deal.id })
-          })
-          // Small delay to let parser finish
-          await new Promise(r => setTimeout(r, 2000))
-        }
-
-        // Now run scrubber
-        const r = await fetch(appUrl + '/api/scrubber/run', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ dealId: deal.id })
-        })
-
-        const data = await r.json()
-        results.push({
-          dealNumber: deal.deal_number,
-          business: deal.business_name,
-          approved: data.approved,
-          riskScore: data.riskScore,
-          status: data.approved ? 'offered' : 'declined'
-        })
-
-        // Small delay between deals to avoid API rate limits
-        await new Promise(r => setTimeout(r, 1000))
-
-      } catch (err) {
-        results.push({
-          dealNumber: deal.deal_number,
-          business: deal.business_name,
-          error: err.message
-        })
-      }
+      fetch(appUrl + '/api/scrubber/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dealId: deal.id })
+      }).catch(e => console.error('Scrub failed for', deal.deal_number, e.message))
     }
 
     return res.json({
-      message: 'Scrub complete',
-      count: results.length,
-      approved: results.filter(r => r.approved).length,
-      declined: results.filter(r => r.approved === false).length,
-      results
+      message: 'Scrubbing ' + deals.length + ' deals in background',
+      deals: deals.map(d => ({ id: d.deal_number, business: d.business_name })),
+      remaining: count,
+      tip: 'Run this again in 30 seconds to scrub the next batch'
     })
 
   } catch (err) {
