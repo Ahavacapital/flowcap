@@ -23,12 +23,12 @@ export default async function handler(req, res) {
 
     const gmail = google.gmail({ version: 'v1', auth: oauth2Client })
 
-    // Only last 7 days, unread, inbox only — prevents timeout on large mailboxes
+    // Last 30 days, unread, inbox only
     const query = [
       'is:unread',
       'in:inbox',
       'to:' + process.env.GMAIL_USER_EMAIL,
-      'newer_than:7d',
+      'newer_than:30d',
       '-category:promotions',
       '-category:social',
       '-category:updates'
@@ -37,7 +37,7 @@ export default async function handler(req, res) {
     const { data: listData } = await gmail.users.messages.list({
       userId: 'me',
       q: query,
-      maxResults: 10,
+      maxResults: 20,
     })
 
     const messages = listData.messages || []
