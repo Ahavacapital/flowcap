@@ -7,209 +7,218 @@ export default function Home() {
           --bg:#0a0c0f;--bg2:#111318;--bg3:#181c23;--bg4:#1e2330;
           --border:#ffffff0f;--border2:#ffffff18;--border3:#ffffff28;
           --text:#e8eaf0;--text2:#8b90a0;--text3:#555a6a;
-          --accent:#3b82f6;--accent2:#6366f1;--green:#10b981;
-          --amber:#f59e0b;--red:#ef4444;--purple:#a78bfa;--teal:#14b8a6;
+          --accent:#3b82f6;--green:#10b981;--amber:#f59e0b;
+          --red:#ef4444;--purple:#a78bfa;--teal:#14b8a6;
           --font:'DM Sans',sans-serif;--mono:'DM Mono',monospace;
           --serif:'Playfair Display',serif;
-          --radius:10px;--radius-lg:16px;--radius-xl:24px;
+          --radius:10px;--radius-lg:16px;--radius-xl:22px;
         }
         html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased;overflow:hidden}
-        #app{height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px}
-        .lmark{font-family:Georgia,serif;font-size:36px;color:var(--text)}.lmark span{color:var(--accent)}
-        .lsub{font-size:12px;color:var(--text3);letter-spacing:2px;text-transform:uppercase}
-        .lbar{width:180px;height:2px;background:var(--border2);border-radius:2px;overflow:hidden}
-        .lfill{height:100%;background:var(--accent);border-radius:2px;animation:ld 1.5s ease-in-out infinite}
-        .lst{font-size:12px;color:var(--text3)}
-        @keyframes ld{0%{width:0}50%{width:70%}100%{width:100%}}
         ::-webkit-scrollbar{width:4px;height:4px}
         ::-webkit-scrollbar-thumb{background:var(--border3);border-radius:2px}
+        #app{height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px}
+        .lmark{font-family:Georgia,serif;font-size:36px;color:var(--text)}.lmark span{color:var(--accent)}
+        .lsub{font-size:11px;color:var(--text3);letter-spacing:2px;text-transform:uppercase}
+        .lbar{width:180px;height:2px;background:var(--border2);border-radius:2px;overflow:hidden}
+        .lfill{height:100%;background:var(--accent);animation:ld 1.5s ease-in-out infinite}
+        @keyframes ld{0%{width:0}50%{width:70%}100%{width:100%}}
         #root{height:100vh;width:100vw;display:flex;overflow:hidden;position:fixed;top:0;left:0}
-        .sb{width:220px;min-width:220px;height:100%;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0}
+        .sb{width:216px;min-width:216px;height:100%;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+        .sb-scroll{flex:1;overflow-y:auto}
         .mn{flex:1;min-width:0;height:100%;overflow:hidden;display:flex;flex-direction:column}
-        .tb{height:56px;min-height:56px;flex-shrink:0;border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:12px;background:var(--bg2)}
+        .tb{height:54px;min-height:54px;flex-shrink:0;border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:10px;background:var(--bg2)}
         .ct{flex:1;min-height:0;overflow-y:auto;padding:20px}
-        .sbl{padding:18px 18px 14px;border-bottom:1px solid var(--border);flex-shrink:0}
-        .lm{font-family:var(--serif);font-size:19px;color:var(--text);letter-spacing:-.5px}
+        .sbl{padding:16px 18px 12px;border-bottom:1px solid var(--border);flex-shrink:0}
+        .lm{font-family:var(--serif);font-size:18px;color:var(--text)}
         .lm span{color:var(--accent)}
-        .ls{font-size:10px;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;margin-top:2px;font-family:var(--mono)}
-        .ns{padding:14px 12px 6px;font-size:10px;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;font-family:var(--mono)}
-        .ni{display:flex;align-items:center;gap:10px;padding:7px 12px;margin:1px 8px;border-radius:var(--radius);cursor:pointer;color:var(--text2);font-size:13px;transition:all .15s;position:relative}
+        .ls{font-size:10px;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;font-family:var(--mono)}
+        .ns{padding:12px 12px 4px;font-size:10px;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;font-family:var(--mono)}
+        .ni{display:flex;align-items:center;gap:8px;padding:7px 12px;margin:1px 8px;border-radius:var(--radius);cursor:pointer;color:var(--text2);font-size:13px;transition:all .15s;position:relative;user-select:none}
         .ni:hover{background:var(--bg3);color:var(--text)}
         .ni.ac{background:var(--bg4);color:var(--text);font-weight:500}
-        .ni.ac::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:16px;background:var(--accent);border-radius:0 2px 2px 0}
-        .nb{margin-left:auto;background:var(--accent);color:#fff;font-size:10px;font-family:var(--mono);padding:1px 6px;border-radius:10px}
-        .nb.am{background:var(--amber);color:#000}
-        .sbb{margin-top:auto;padding:14px;border-top:1px solid var(--border);flex-shrink:0}
-        .uc{display:flex;align-items:center;gap:10px;padding:8px;border-radius:var(--radius);background:var(--bg3)}
-        .av{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#fff;flex-shrink:0}
-        .pt{font-size:15px;font-weight:500;color:var(--text)}
-        .tr{margin-left:auto;display:flex;align-items:center;gap:8px}
-        .btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--radius);font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s;font-family:var(--font);white-space:nowrap}
-        .bp{background:var(--accent);color:#fff}.bp:hover{background:#2563eb}
-        .bg{background:transparent;color:var(--text2);border:1px solid var(--border2)}.bg:hover{background:var(--bg3);color:var(--text)}
+        .ni.ac::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:14px;background:var(--accent);border-radius:0 2px 2px 0}
+        .nb{margin-left:auto;background:var(--amber);color:#000;font-size:10px;font-family:var(--mono);padding:1px 6px;border-radius:10px;font-weight:600}
+        .sbb{padding:12px;border-top:1px solid var(--border);flex-shrink:0}
+        .uc{display:flex;align-items:center;gap:8px;padding:8px;border-radius:var(--radius);background:var(--bg3)}
+        .av{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#6366f1);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#fff;flex-shrink:0}
+        .pt{font-size:14px;font-weight:500;color:var(--text)}
+        .tr{margin-left:auto;display:flex;align-items:center;gap:6px}
+        .btn{display:inline-flex;align-items:center;gap:5px;padding:6px 13px;border-radius:var(--radius);font-size:12px;font-weight:500;cursor:pointer;border:none;transition:all .15s;font-family:var(--font);white-space:nowrap;user-select:none}
+        .btn:disabled{opacity:.5;cursor:not-allowed}
+        .bp{background:var(--accent);color:#fff}.bp:hover:not(:disabled){background:#2563eb}
+        .bg{background:transparent;color:var(--text2);border:1px solid var(--border2)}.bg:hover:not(:disabled){background:var(--bg3);color:var(--text)}
         .bs{padding:5px 10px;font-size:12px}
-        .bd{background:#ef444415;color:var(--red);border:1px solid #ef444430}
-        .bsu{background:#10b98115;color:var(--green);border:1px solid #10b98130}
-        .bam{background:#f59e0b15;color:var(--amber);border:1px solid #f59e0b30}
-        .cd{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px}
-        .cds{padding:12px 14px}
-        .sg{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
-        .sc2{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 18px}
-        .sl2{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:var(--mono)}
-        .sv{font-size:22px;font-weight:600;color:var(--text);margin:5px 0 3px;font-family:var(--mono);letter-spacing:-1px}
+        .bd{background:#ef444415;color:var(--red);border:1px solid #ef444430}.bd:hover:not(:disabled){background:#ef444425}
+        .bsu{background:#10b98115;color:var(--green);border:1px solid #10b98130}.bsu:hover:not(:disabled){background:#10b98125}
+        .bam{background:#f59e0b15;color:var(--amber);border:1px solid #f59e0b30}.bam:hover:not(:disabled){background:#f59e0b25}
+        .cd{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px}
+        .cds{padding:11px 13px}
+        .sg{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
+        .sc2{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px 16px}
+        .sl2{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:var(--mono)}
+        .sv{font-size:20px;font-weight:600;color:var(--text);margin:4px 0 2px;font-family:var(--mono);letter-spacing:-1px}
         .sd{font-size:11px;font-family:var(--mono)}.sd.up{color:var(--green)}.sd.dn{color:var(--red)}
         .pt2{width:100%;border-collapse:collapse}
-        .pt2 th{text-align:left;padding:8px 12px;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:var(--mono);border-bottom:1px solid var(--border);font-weight:400;white-space:nowrap;cursor:pointer}
-        .pt2 th:hover{color:var(--text2)}
+        .pt2 th{text-align:left;padding:7px 12px;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:var(--mono);border-bottom:1px solid var(--border);font-weight:400;white-space:nowrap}
         .pt2 td{padding:10px 12px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle}
         .pt2 tr:last-child td{border-bottom:none}
-        .pt2 tr:hover td{background:var(--bg3)}
-        .pt2 tr{cursor:pointer;transition:background .1s}
-        .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:500;font-family:var(--mono);white-space:nowrap}
-        .badge::before{content:'';width:5px;height:5px;border-radius:50%;flex-shrink:0}
-        .badge-new{background:#3b82f615;color:#93c5fd;border:1px solid #3b82f630}.badge-new::before{background:#93c5fd}
-        .badge-scrubbing{background:#6366f115;color:#c4b5fd;border:1px solid #6366f130}.badge-scrubbing::before{background:#c4b5fd}
-        .badge-underwriting{background:#f59e0b15;color:#fcd34d;border:1px solid #f59e0b30}.badge-underwriting::before{background:#fcd34d}
-        .badge-offered{background:#14b8a615;color:#5eead4;border:1px solid #14b8a630}.badge-offered::before{background:#5eead4}
-        .badge-docs{background:#a78bfa15;color:#c4b5fd;border:1px solid #a78bfa30}.badge-docs::before{background:#c4b5fd}
-        .badge-contracts{background:#3b82f615;color:#93c5fd;border:1px solid #3b82f630}.badge-contracts::before{background:#93c5fd}
-        .badge-bankverify{background:#f59e0b15;color:#fcd34d;border:1px solid #f59e0b30}.badge-bankverify::before{background:#fcd34d}
-        .badge-funded{background:#10b98115;color:#6ee7b7;border:1px solid #10b98130}.badge-funded::before{background:#6ee7b7}
-        .badge-declined{background:#ef444415;color:#fca5a5;border:1px solid #ef444430}.badge-declined::before{background:#fca5a5}
-        .badge-renewal{background:#ec489915;color:#f9a8d4;border:1px solid #ec489930}.badge-renewal::before{background:#f9a8d4}
-        .df{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-        .dff{background:var(--bg3);border-radius:var(--radius);padding:10px 12px}
-        .dl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:var(--mono);margin-bottom:3px}
+        .pt2 tr.clickable:hover td{background:var(--bg3);cursor:pointer}
+        .badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:500;font-family:var(--mono);white-space:nowrap}
+        .badge::before{content:'';width:4px;height:4px;border-radius:50%;flex-shrink:0}
+        .bn{background:#3b82f615;color:#93c5fd;border:1px solid #3b82f625}.bn::before{background:#93c5fd}
+        .bsc{background:#6366f115;color:#c4b5fd;border:1px solid #6366f125}.bsc::before{background:#c4b5fd}
+        .buw{background:#f59e0b15;color:#fcd34d;border:1px solid #f59e0b25}.buw::before{background:#fcd34d}
+        .bof{background:#14b8a615;color:#5eead4;border:1px solid #14b8a625}.bof::before{background:#5eead4}
+        .bdo{background:#a78bfa15;color:#c4b5fd;border:1px solid #a78bfa25}.bdo::before{background:#c4b5fd}
+        .bco{background:#3b82f615;color:#93c5fd;border:1px solid #3b82f625}.bco::before{background:#93c5fd}
+        .bbv{background:#f59e0b15;color:#fcd34d;border:1px solid #f59e0b25}.bbv::before{background:#fcd34d}
+        .bfu{background:#10b98115;color:#6ee7b7;border:1px solid #10b98125}.bfu::before{background:#6ee7b7}
+        .bde{background:#ef444415;color:#fca5a5;border:1px solid #ef444425}.bde::before{background:#fca5a5}
+        .dg{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+        .df{background:var(--bg3);border-radius:var(--radius);padding:10px 12px}
+        .dl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:var(--mono);margin-bottom:2px}
         .dv{font-size:13px;color:var(--text);font-weight:500}
-        .tl{display:flex;flex-direction:column}
-        .tli{display:flex;gap:12px;padding:8px 0}
-        .tld{width:8px;height:8px;border-radius:50%;background:var(--accent);margin-top:4px;flex-shrink:0;position:relative}
-        .tld::after{content:'';position:absolute;left:3px;top:8px;width:2px;height:calc(100% + 8px);background:var(--border2)}
-        .tli:last-child .tld::after{display:none}
-        .tld.green{background:var(--green)}.tld.red{background:var(--red)}.tld.amber{background:var(--amber)}
-        .tlt{font-size:11px;color:var(--text3);font-family:var(--mono);white-space:nowrap;min-width:80px}
-        .tltx{font-size:12px;color:var(--text2)}
-        .mo{position:fixed;inset:0;background:#00000090;display:flex;align-items:center;justify-content:center;z-index:1000}
-        .md{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-xl);width:720px;max-width:96vw;max-height:88vh;overflow-y:auto;padding:24px;position:relative}
-        .mt{font-size:18px;font-weight:600;color:var(--text);margin-bottom:3px;font-family:var(--serif)}
-        .mc{position:absolute;top:18px;right:18px;background:var(--bg3);border:none;color:var(--text2);width:28px;height:28px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px}
+        .mo{position:fixed;inset:0;background:#00000095;display:flex;align-items:center;justify-content:center;z-index:100;padding:16px}
+        .md{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-xl);width:700px;max-width:100%;max-height:90vh;overflow-y:auto;padding:24px;position:relative}
+        .mt{font-size:17px;font-weight:600;color:var(--text);font-family:var(--serif)}
+        .mc{position:absolute;top:16px;right:16px;background:var(--bg3);border:none;color:var(--text2);width:26px;height:26px;border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+        .mc:hover{background:var(--bg4);color:var(--text)}
         .fg{display:grid;grid-template-columns:1fr 1fr;gap:12px}
         .fgg{display:flex;flex-direction:column;gap:4px}
         .fgg.full{grid-column:1/-1}
-        .fl{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:var(--mono)}
-        .fi{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);padding:8px 12px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;transition:border .15s;width:100%}
+        .fl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:var(--mono)}
+        .fi{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);padding:8px 11px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;transition:border .15s;width:100%}
         .fi:focus{border-color:var(--accent)}
         .fi::placeholder{color:var(--text3)}
-        select.fi option{background:var(--bg3)}
-        textarea.fi{resize:vertical;min-height:72px}
-        .tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:16px;flex-shrink:0}
-        .tab{padding:9px 14px;font-size:13px;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;margin-bottom:-1px;white-space:nowrap}
+        select.fi option{background:var(--bg2)}
+        textarea.fi{resize:vertical;min-height:70px}
+        .tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:14px;overflow-x:auto}
+        .tab{padding:8px 13px;font-size:12px;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;margin-bottom:-1px;white-space:nowrap;user-select:none}
         .tab:hover{color:var(--text2)}
         .tab.ac{color:var(--text);border-bottom-color:var(--accent);font-weight:500}
-        .oc{background:linear-gradient(135deg,#0f1829,#0f2219);border:1px solid #3b82f640;border-radius:var(--radius-xl);padding:20px}
-        .oa{font-size:32px;font-weight:600;color:var(--text);font-family:var(--mono);letter-spacing:-1px}
-        .ol{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:var(--mono);margin-bottom:4px}
-        .om{display:flex;gap:20px;margin-top:14px;flex-wrap:wrap}
-        .omv{font-size:15px;font-weight:500;color:var(--text);font-family:var(--mono)}
+        .oc{background:linear-gradient(135deg,#0d1f12,#0d1a2a);border:1px solid #3b82f630;border-radius:var(--radius-xl);padding:18px}
+        .oa{font-size:30px;font-weight:600;color:var(--text);font-family:var(--mono);letter-spacing:-1px}
+        .ol{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:var(--mono);margin-bottom:3px}
+        .om{display:flex;gap:18px;margin-top:12px;flex-wrap:wrap}
+        .omv{font-size:14px;font-weight:500;color:var(--text);font-family:var(--mono)}
         .oml{font-size:10px;color:var(--text3);font-family:var(--mono);text-transform:uppercase}
-        .sb2{height:5px;background:var(--bg4);border-radius:3px;overflow:hidden;margin-top:5px}
-        .sf{height:100%;border-radius:3px}
-        .ps{display:flex;margin-bottom:20px;overflow-x:auto}
-        .pst{flex:1;min-width:70px;text-align:center;padding:6px 4px;position:relative}
-        .pst::after{content:'';position:absolute;right:0;top:50%;transform:translateY(-50%);width:1px;height:60%;background:var(--border)}
+        .sbar{height:5px;background:var(--bg4);border-radius:3px;overflow:hidden}
+        .sfill{height:100%;border-radius:3px;transition:width .3s}
+        .ps{display:flex;margin-bottom:18px;overflow-x:auto;padding-bottom:4px}
+        .pst{flex:1;min-width:60px;text-align:center;padding:4px 2px;position:relative}
+        .pst::after{content:'';position:absolute;right:0;top:40%;width:1px;height:40%;background:var(--border)}
         .pst:last-child::after{display:none}
-        .psd{width:24px;height:24px;border-radius:50%;border:2px solid var(--border3);margin:0 auto 5px;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--text3)}
+        .psd{width:22px;height:22px;border-radius:50%;border:2px solid var(--border3);margin:0 auto 4px;display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--text3);font-family:var(--mono)}
         .pst.dn .psd{background:var(--green);border-color:var(--green);color:#fff}
-        .pst.av .psd{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 0 10px #3b82f640}
-        .pst.er .psd{background:var(--red);border-color:var(--red);color:#fff}
+        .pst.av .psd{background:var(--accent);border-color:var(--accent);color:#fff}
         .psl{font-size:9px;color:var(--text3);font-family:var(--mono)}
-        .pst.av .psl{color:var(--accent)}.pst.dn .psl{color:var(--green)}.pst.er .psl{color:var(--red)}
-        .rf{padding:10px 12px;border-radius:var(--radius);background:var(--bg3);border-left:3px solid;margin-bottom:8px}
-        .rf.red{border-color:var(--red)}.rf.amber{border-color:var(--amber)}.rf.green{border-color:var(--green)}
-        .uz{border:2px dashed var(--border3);border-radius:var(--radius-lg);padding:24px;text-align:center;cursor:pointer;transition:all .2s}
-        .uz:hover{border-color:var(--accent)}
-        .dv2{height:1px;background:var(--border);margin:16px 0}
-        .em{text-align:center;padding:40px 20px}
-        .emi{font-size:32px;margin-bottom:10px;opacity:.4}
-        .emt{font-size:13px;color:var(--text3)}
+        .pst.av .psl{color:var(--accent)}.pst.dn .psl{color:var(--green)}
+        .rf{padding:9px 12px;border-radius:var(--radius);background:var(--bg3);border-left:3px solid var(--border3);margin-bottom:8px}
+        .rf.red{border-left-color:var(--red)}.rf.amber{border-left-color:var(--amber)}.rf.green{border-left-color:var(--green)}
+        .divider{height:1px;background:var(--border);margin:14px 0}
+        .em{text-align:center;padding:36px 20px}
+        .emt{font-size:13px;color:var(--text3);margin-top:8px}
         .tw{overflow-x:auto}
-        .sp{width:20px;height:20px;border:2px solid var(--border3);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto}
-        .profit-box{background:linear-gradient(135deg,#0a1f0a,#0a1a0a);border:1px solid #10b98140;border-radius:var(--radius-lg);padding:14px 16px}
-        .search-wrap{position:relative;flex:1;min-width:200px}
-        .search-wrap input{padding-left:32px !important}
-        .search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:13px;pointer-events:none}
-        .filter-row{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+        .sp{width:18px;height:18px;border:2px solid var(--border3);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
         .note-card{padding:10px 12px;background:var(--bg3);border-radius:var(--radius);border-left:3px solid var(--border3);margin-bottom:8px}
         .note-card.risk{border-left-color:var(--red)}
         .note-card.approval{border-left-color:var(--green)}
         .note-card.condition{border-left-color:var(--amber)}
         .note-card.followup{border-left-color:var(--purple)}
         .note-card.system{border-left-color:var(--accent)}
-        .deal-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:12px;cursor:pointer;transition:all .15s;margin-bottom:8px}
+        .tl{display:flex;flex-direction:column}
+        .tli{display:flex;gap:10px;padding:7px 0}
+        .tld{width:7px;height:7px;border-radius:50%;background:var(--accent);margin-top:4px;flex-shrink:0;position:relative}
+        .tld::after{content:'';position:absolute;left:3px;top:7px;width:1px;height:calc(100% + 7px);background:var(--border2)}
+        .tli:last-child .tld::after{display:none}
+        .tld.green{background:var(--green)}.tld.red{background:var(--red)}.tld.amber{background:var(--amber)}
+        .tlt{font-size:10px;color:var(--text3);font-family:var(--mono);white-space:nowrap;min-width:70px}
+        .tltx{font-size:12px;color:var(--text2)}
+        .profit-box{background:linear-gradient(135deg,#091509,#091520);border:1px solid #10b98130;border-radius:var(--radius-lg);padding:12px 14px}
+        .deal-col{display:flex;flex-direction:column;gap:6px}
+        .deal-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:10px;cursor:pointer;transition:border-color .15s}
         .deal-card:hover{border-color:var(--border3)}
-        .new-dot{width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;flex-shrink:0}
-        .action-bar{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
-        @keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+        .search-wrap{position:relative;flex:1;min-width:180px}
+        .search-wrap input{padding-left:30px !important}
+        .si{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:12px;pointer-events:none;font-family:var(--mono)}
+        .filter-row{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+        .action-row{display:flex;gap:6px;flex-wrap:wrap;padding-top:4px}
+        .toast{position:fixed;bottom:20px;right:20px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:10px 16px;font-size:13px;color:var(--text);z-index:200;box-shadow:0 4px 20px #00000060;animation:slideup .2s ease}
+        .toast.success{border-color:#10b98140;color:var(--green)}
+        .toast.error{border-color:#ef444440;color:var(--red)}
+        @keyframes slideup{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes fadein{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
         @keyframes spin{to{transform:rotate(360deg)}}
         .fa{animation:fadein .2s ease forwards}
-        @media(max-width:768px){.sb{display:none}.sg{grid-template-columns:1fr 1fr}.fg{grid-column:1fr}}
-        @media(max-width:480px){.sg{grid-template-columns:1fr}}
+        @media(max-width:768px){.sb{display:none}.sg{grid-template-columns:1fr 1fr}}
       `}</style>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet"/>
       <div id="app">
         <div className="lmark">Flow<span>Cap</span></div>
         <div className="lsub">MCA Platform</div>
         <div className="lbar"><div className="lfill"/></div>
-        <div className="lst">Loading your deals...</div>
       </div>
       <script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js" defer></script>
       <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js" defer></script>
       <script src="https://unpkg.com/@babel/standalone@7.23.0/babel.min.js" defer></script>
       <script type="text/babel" data-type="module">{`
 
-const {useState,useEffect,useCallback}=React;
+const {useState,useEffect,useCallback,useRef}=React;
 
-const SL={new:'New',scrubbing:'Scrubbing',underwriting:'Underwriting',offered:'Offered',docs:'Docs',contracts:'Contracts',bankverify:'Bank Verify',funded:'Funded',declined:'Declined',renewal:'Renewal'};
+const STATUS={new:'New',scrubbing:'Scrubbing',underwriting:'Underwriting',offered:'Offered',docs:'Docs',contracts:'Contracts',bankverify:'Bank Verify',funded:'Funded',declined:'Declined',renewal:'Renewal'};
+const NEXT_STATUS={new:'scrubbing',scrubbing:'underwriting',underwriting:'offered',offered:'docs',docs:'contracts',contracts:'bankverify',bankverify:'funded'};
+const NOTE_COLORS={general:'var(--text3)',risk:'var(--red)',approval:'var(--green)',condition:'var(--amber)',followup:'var(--purple)',system:'var(--accent)'};
+
 const f$=(n)=>n!=null?'$'+Number(n).toLocaleString():'--';
-const sc=(s)=>({new:'badge-new',scrubbing:'badge-scrubbing',underwriting:'badge-underwriting',offered:'badge-offered',docs:'badge-docs',contracts:'badge-contracts',bankverify:'badge-bankverify',funded:'badge-funded',declined:'badge-declined',renewal:'badge-renewal'}[s]||'badge-new');
+const pct=(n)=>n!=null?Number(n).toFixed(3)+'x':'--';
 const rc=(r)=>r>=70?'var(--green)':r>=50?'var(--amber)':'var(--red)';
-const isToday=(d)=>{if(!d)return false;const t=new Date();const dd=new Date(d);return dd.toDateString()===t.toDateString();};
-const NEXT={new:'scrubbing',scrubbing:'underwriting',underwriting:'offered',offered:'docs',docs:'contracts',contracts:'bankverify',bankverify:'funded'};
-const cc={general:'var(--text3)',risk:'var(--red)',approval:'var(--green)',condition:'var(--amber)',followup:'var(--purple)',system:'var(--accent)'};
+const isToday=(d)=>{if(!d)return false;return new Date(d).toDateString()===new Date().toDateString()};
+
+const badgeClass=(s)=>({
+  new:'bn',scrubbing:'bsc',underwriting:'buw',offered:'bof',
+  docs:'bdo',contracts:'bco',bankverify:'bbv',funded:'bfu',
+  declined:'bde',renewal:'bfu'
+}[s]||'bn');
 
 function mapDeal(d){
-  const profit=d.amount_approved&&d.factor_rate?Math.round(d.amount_approved*(1.499-d.factor_rate)):null;
-  return {
-    id:d.deal_number||d.id, dbId:d.id,
+  const profit=d.amount_approved&&d.factor_rate
+    ?Math.round(d.amount_approved*(1.499-d.factor_rate)):null;
+  return{
+    id:d.deal_number||d.id,
+    dbId:d.id,
     business:d.business_name||'Unknown',
     contact:d.contact_name||'',
-    contactEmail:d.contact_email||'',
+    email:d.contact_email||'',
     broker:d.broker?.name||d.contact_email||'Unknown',
     amount:d.amount_approved||null,
     requested:d.amount_requested||null,
     status:d.status||'new',
     risk:d.risk_score||null,
     factor:d.factor_rate||null,
-    term:d.term_months||null,
     termDays:d.term_months?d.term_months*30:null,
     positions:d.positions||0,
-    avgDailyBal:d.avg_daily_balance||null,
+    dailyBal:d.avg_daily_balance||null,
     monthlyRev:d.monthly_revenue||null,
     nyCourt:d.ny_court_result||null,
     dataMerch:d.datamerch_result||null,
-    submitted:d.submitted_at?.slice(0,10)||'',
-    submittedFull:d.submitted_at||null,
-    funded:d.funded_at?.slice(0,10)||null,
+    submitted:d.submitted_at?d.submitted_at.slice(0,10):'',
+    submittedAt:d.submitted_at||null,
+    funded:d.funded_at?d.funded_at.slice(0,10):null,
     balance:d.balance||null,
     notes:d.notes||'',
     uwNotes:(d.deal_notes||[]).map(n=>({
-      id:n.id,text:n.body,category:n.category||'general',
+      id:n.id,text:n.body||'',cat:n.category||'general',
       author:n.author||'System',
       time:n.created_at?new Date(n.created_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):''
     })),
     profit,
-    merchantPayback:d.amount_approved?Math.round(d.amount_approved*1.499):null,
+    payback:d.amount_approved?Math.round(d.amount_approved*1.499):null,
   };
+}
+
+function Toast({msg,type,onDone}){
+  useEffect(()=>{const t=setTimeout(onDone,3000);return()=>clearTimeout(t)},[]);
+  return <div className={'toast '+type}>{msg}</div>;
 }
 
 function App(){
@@ -219,41 +228,62 @@ function App(){
   const [sel,setSel]=useState(null);
   const [showNew,setShowNew]=useState(false);
   const [syncing,setSyncing]=useState(false);
+  const [toast,setToast]=useState(null);
+  const refreshRef=useRef(null);
 
-  const loadDeals=useCallback(()=>{
-    fetch('/api/deals/list')
-      .then(r=>r.json())
-      .then(data=>{if(data.deals)setDeals(data.deals.map(mapDeal));setLoading(false);})
-      .catch(()=>setLoading(false));
+  const showToast=(msg,type='success')=>setToast({msg,type});
+
+  const loadDeals=useCallback(async()=>{
+    try{
+      const r=await fetch('/api/deals/list');
+      const data=await r.json();
+      if(data.deals)setDeals(data.deals.map(mapDeal));
+    }catch(e){console.error('Load deals failed',e);}
+    setLoading(false);
   },[]);
 
-  useEffect(()=>{loadDeals();},[]);
+  useEffect(()=>{
+    loadDeals();
+    // Auto refresh every 60 seconds
+    refreshRef.current=setInterval(loadDeals,60000);
+    return()=>clearInterval(refreshRef.current);
+  },[loadDeals]);
 
   const syncSheets=async()=>{
     setSyncing(true);
-    try{await fetch('/api/sheets/sync',{method:'POST',headers:{'Authorization':'Bearer flowcap2024secret'}});}catch(e){}
+    try{
+      await fetch('/api/sheets/sync',{method:'POST',headers:{Authorization:'Bearer flowcap2024secret'}});
+      showToast('Sheets synced successfully');
+    }catch(e){showToast('Sync failed','error');}
     setSyncing(false);
   };
 
-  const upd=d=>setDeals(ds=>ds.map(x=>x.id===d.id?d:x));
-  const add=d=>setDeals(ds=>[d,...ds]);
-  const funded=deals.filter(d=>d.status==='funded');
+  const updateDeal=useCallback((updated)=>{
+    setDeals(ds=>ds.map(d=>d.id===updated.id?updated:d));
+    if(sel&&sel.id===updated.id)setSel(updated);
+  },[sel]);
+
+  const addDeal=useCallback((d)=>setDeals(ds=>[d,...ds]),[]);
+
   const active=deals.filter(d=>!['funded','declined'].includes(d.status));
-  const todayCnt=deals.filter(d=>isToday(d.submittedFull)).length;
+  const funded=deals.filter(d=>d.status==='funded');
+  const todayCnt=deals.filter(d=>isToday(d.submittedAt)).length;
   const tf=funded.reduce((s,d)=>s+(d.amount||0),0);
   const tp=deals.reduce((s,d)=>s+(d.profit||0),0);
 
-  const pts={dashboard:'Dashboard',pipeline:'Deal pipeline',deals:'All deals',brokers:'Brokers / ISO',contracts:'Contracts','broker-portal':'Broker portal','merchant-portal':'Merchant portal','mkt-broker':'Broker campaigns','mkt-merchant':'Merchant campaigns',settings:'Settings'};
-  const navMain=[{id:'dashboard',l:'Dashboard'},{id:'pipeline',l:'Pipeline',b:active.length,bc:'am'},{id:'deals',l:'All Deals'},{id:'brokers',l:'Brokers / ISO'},{id:'contracts',l:'Contracts'}];
-  const navPortal=[{id:'broker-portal',l:'Broker Portal'},{id:'merchant-portal',l:'Merchant Portal'}];
-  const navMkt=[{id:'mkt-broker',l:'Broker Campaigns'},{id:'mkt-merchant',l:'Merchant Campaigns'}];
+  const navMain=[
+    {id:'dashboard',l:'Dashboard'},
+    {id:'pipeline',l:'Pipeline',b:active.length},
+    {id:'deals',l:'All Deals'},
+    {id:'brokers',l:'Brokers / ISO'},
+    {id:'contracts',l:'Contracts'},
+  ];
 
-  if(loading&&!deals.length) return(
+  if(loading)return(
     <div id="app">
       <div className="lmark">Flow<span>Cap</span></div>
-      <div className="lsub">MCA Platform</div>
+      <div className="lsub">Loading deals...</div>
       <div className="lbar"><div className="lfill"/></div>
-      <div className="lst">Loading your deals...</div>
     </div>
   );
 
@@ -264,28 +294,30 @@ function App(){
           <div className="lm">Flow<span>Cap</span></div>
           <div className="ls">MCA Platform</div>
         </div>
-        <div className="ns">Operations</div>
-        {navMain.map(n=>(
-          <div key={n.id} className={'ni'+(pg===n.id?' ac':'')} onClick={()=>setPg(n.id)}>
-            {n.l}{n.b>0&&<span className={'nb'+(n.bc?' '+n.bc:'')}>{n.b}</span>}
-          </div>
-        ))}
-        <div className="ns">Portals</div>
-        {navPortal.map(n=>(
-          <div key={n.id} className={'ni'+(pg===n.id?' ac':'')} onClick={()=>setPg(n.id)}>{n.l}</div>
-        ))}
-        <div className="ns">Marketing</div>
-        {navMkt.map(n=>(
-          <div key={n.id} className={'ni'+(pg===n.id?' ac':'')} onClick={()=>setPg(n.id)}>{n.l}</div>
-        ))}
-        <div className="ns">System</div>
-        <div className={'ni'+(pg==='settings'?' ac':'')} onClick={()=>setPg('settings')}>Settings</div>
+        <div className="sb-scroll">
+          <div className="ns">Operations</div>
+          {navMain.map(n=>(
+            <div key={n.id} className={'ni'+(pg===n.id?' ac':'')} onClick={()=>setPg(n.id)}>
+              {n.l}{n.b>0&&<span className="nb">{n.b}</span>}
+            </div>
+          ))}
+          <div className="ns">Portals</div>
+          {[{id:'broker-portal',l:'Broker Portal'},{id:'merchant-portal',l:'Merchant Portal'}].map(n=>(
+            <div key={n.id} className={'ni'+(pg===n.id?' ac':'')} onClick={()=>setPg(n.id)}>{n.l}</div>
+          ))}
+          <div className="ns">Marketing</div>
+          {[{id:'mkt-iso',l:'ISO Campaigns'},{id:'mkt-merchant',l:'Merchant Campaigns'}].map(n=>(
+            <div key={n.id} className={'ni'+(pg===n.id?' ac':'')} onClick={()=>setPg(n.id)}>{n.l}</div>
+          ))}
+          <div className="ns">System</div>
+          <div className={'ni'+(pg==='settings'?' ac':'')} onClick={()=>setPg('settings')}>Settings</div>
+        </div>
         <div className="sbb">
           <div className="uc">
             <div className="av">JD</div>
             <div>
               <div style={{fontSize:12,fontWeight:500,color:'var(--text)'}}>Jamie Donahue</div>
-              <div style={{fontSize:10,color:'var(--text3)',fontFamily:'var(--mono)'}}>Admin - Underwriter</div>
+              <div style={{fontSize:10,color:'var(--text3)',fontFamily:'var(--mono)'}}>Admin</div>
             </div>
           </div>
         </div>
@@ -293,116 +325,132 @@ function App(){
 
       <div className="mn">
         <div className="tb">
-          <div className="pt">{pts[pg]||pg}</div>
-          {todayCnt>0&&<span style={{fontSize:11,fontFamily:'var(--mono)',color:'var(--green)',background:'#10b98120',border:'1px solid #10b98140',padding:'2px 8px',borderRadius:10}}>{todayCnt} new today</span>}
+          <div className="pt">{{dashboard:'Dashboard',pipeline:'Pipeline',deals:'All Deals',brokers:'Brokers / ISO',contracts:'Contracts','broker-portal':'Broker Portal','merchant-portal':'Merchant Portal','mkt-iso':'ISO Campaigns','mkt-merchant':'Merchant Campaigns',settings:'Settings'}[pg]||pg}</div>
+          {todayCnt>0&&<span style={{fontSize:11,color:'var(--green)',background:'#10b98120',border:'1px solid #10b98140',padding:'2px 8px',borderRadius:10,fontFamily:'var(--mono)'}}>{todayCnt} new today</span>}
           <div className="tr">
             <button className="btn bg bs" onClick={loadDeals}>Refresh</button>
             <button className="btn bg bs" onClick={syncSheets} disabled={syncing}>{syncing?'Syncing...':'Sync Sheets'}</button>
             <button className="btn bp" onClick={()=>setShowNew(true)}>+ New deal</button>
           </div>
         </div>
-
         <div className="ct">
           {pg==='dashboard'&&<Dashboard deals={deals} setPg={setPg} setSel={setSel} tf={tf} tp={tp} active={active} funded={funded} todayCnt={todayCnt}/>}
           {pg==='pipeline'&&<Pipeline deals={deals} setSel={setSel} setShowNew={setShowNew}/>}
           {pg==='deals'&&<AllDeals deals={deals} setSel={setSel} setShowNew={setShowNew}/>}
-          {pg==='brokers'&&<BrokersPage deals={deals}/>}
-          {pg==='contracts'&&<ContractsPage deals={deals} upd={upd}/>}
+          {pg==='brokers'&&<Brokers deals={deals}/>}
+          {pg==='contracts'&&<Contracts deals={deals}/>}
           {pg==='broker-portal'&&<BrokerPortal deals={deals}/>}
           {pg==='merchant-portal'&&<MerchantPortal deals={deals}/>}
-          {pg==='mkt-broker'&&<MktPage type="broker"/>}
-          {pg==='mkt-merchant'&&<MktPage type="merchant"/>}
-          {pg==='settings'&&<SettingsPage/>}
+          {pg==='mkt-iso'&&<Mkt type="iso"/>}
+          {pg==='mkt-merchant'&&<Mkt type="merchant"/>}
+          {pg==='settings'&&<Settings/>}
         </div>
       </div>
 
-      {sel&&<DealModal deal={sel} onClose={()=>setSel(null)} onUpd={d=>{upd(d);setSel(d)}} onRefresh={loadDeals}/>}
-      {showNew&&<NewDeal onClose={()=>setShowNew(false)} onSave={d=>{add(d);setShowNew(false)}}/>}
+      {sel&&(
+        <DealDetail
+          deal={sel}
+          onClose={()=>setSel(null)}
+          onUpdate={updateDeal}
+          onRefresh={loadDeals}
+          showToast={showToast}
+        />
+      )}
+      {showNew&&(
+        <NewDeal
+          onClose={()=>setShowNew(false)}
+          onSave={d=>{addDeal(d);setShowNew(false);showToast('Deal created');}}
+        />
+      )}
+      {toast&&<Toast msg={toast.msg} type={toast.type} onDone={()=>setToast(null)}/>}
     </div>
   );
 }
 
 function Dashboard({deals,setPg,setSel,tf,tp,active,funded,todayCnt}){
+  const today=deals.filter(d=>isToday(d.submittedAt));
   const declined=deals.filter(d=>d.status==='declined').length;
-  const approvalPct=deals.filter(d=>['funded','declined'].includes(d.status)).length>0
-    ?Math.round(funded.length/deals.filter(d=>['funded','declined'].includes(d.status)).length*100):0;
-  const todayDeals=deals.filter(d=>isToday(d.submittedFull));
+  const closedDeals=deals.filter(d=>['funded','declined'].includes(d.status));
+  const apr=closedDeals.length>0?Math.round(funded.length/closedDeals.length*100):0;
   return(
     <div className="fa">
       <div className="sg">
         <div className="sc2"><div className="sl2">Funded (all time)</div><div className="sv" style={{color:'var(--green)'}}>{f$(tf)}</div><div className="sd up">{funded.length} deals</div></div>
-        <div className="sc2"><div className="sl2">Active pipeline</div><div className="sv">{active.length}</div><div className="sd up">{todayCnt} new today</div></div>
+        <div className="sc2"><div className="sl2">Active pipeline</div><div className="sv">{active.length}</div><div className="sd">{todayCnt} new today</div></div>
         <div className="sc2"><div className="sl2">Total profit</div><div className="sv" style={{color:'var(--teal)'}}>{f$(tp)}</div><div className="sd up">buy/sell spread</div></div>
-        <div className="sc2"><div className="sl2">Approval rate</div><div className="sv">{approvalPct}%</div><div className="sd dn">{declined} declined</div></div>
+        <div className="sc2"><div className="sl2">Approval rate</div><div className="sv">{apr}%</div><div className="sd dn">{declined} declined</div></div>
       </div>
 
-      {todayDeals.length>0&&(
-        <div style={{marginBottom:16,padding:'12px 16px',background:'#10b98112',border:'1px solid #10b98140',borderRadius:'var(--radius-lg)',display:'flex',alignItems:'center',gap:12}}>
-          <div style={{width:8,height:8,borderRadius:'50%',background:'var(--green)',flexShrink:0}}/>
+      {today.length>0&&(
+        <div style={{marginBottom:16,padding:'10px 14px',background:'#10b98112',border:'1px solid #10b98140',borderRadius:'var(--radius-lg)',display:'flex',alignItems:'center',gap:10}}>
+          <div style={{width:7,height:7,borderRadius:'50%',background:'var(--green)',flexShrink:0}}/>
           <div style={{flex:1}}>
-            <div style={{fontSize:13,fontWeight:500,color:'var(--green)'}}>{todayDeals.length} new deal{todayDeals.length!==1?'s':''} today</div>
-            <div style={{fontSize:12,color:'var(--text3)',marginTop:2}}>{todayDeals.map(d=>d.business).slice(0,3).join(', ')}{todayDeals.length>3?' ...':''}</div>
+            <span style={{fontSize:13,fontWeight:500,color:'var(--green)'}}>{today.length} new deal{today.length!==1?'s':''} today: </span>
+            <span style={{fontSize:12,color:'var(--text3)'}}>{today.slice(0,3).map(d=>d.business).join(', ')}{today.length>3?' ...':''}</span>
           </div>
           <button className="btn bsu bs" onClick={()=>setPg('deals')}>View</button>
         </div>
       )}
 
-      <div style={{display:'grid',gridTemplateColumns:'1fr 300px',gap:14}}>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 280px',gap:12}}>
         <div className="cd">
-          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
             <div style={{fontSize:13,fontWeight:500,color:'var(--text)'}}>Recent deals</div>
             <button className="btn bg bs" onClick={()=>setPg('deals')}>View all</button>
           </div>
           <div className="tw">
             <table className="pt2">
-              <thead><tr><th>Business</th><th>Broker</th><th>Requested</th><th>Offer</th><th>Status</th><th>Risk</th><th>Profit</th></tr></thead>
-              <tbody>{deals.slice(0,8).map(d=>(
-                <tr key={d.id} onClick={()=>setSel(d)}>
-                  <td>
-                    <div style={{fontWeight:500,color:'var(--text)',display:'flex',alignItems:'center',gap:6}}>
-                      {isToday(d.submittedFull)&&<span className="new-dot"/>}
-                      <span style={{maxWidth:160,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',display:'block'}}>{d.business}</span>
-                    </div>
-                    <div style={{fontSize:11,color:'var(--text3)',fontFamily:'var(--mono)'}}>{d.id}</div>
-                  </td>
-                  <td style={{color:'var(--text2)',fontSize:12,maxWidth:120,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{d.broker}</td>
-                  <td style={{fontFamily:'var(--mono)',fontSize:12}}>{f$(d.requested)}</td>
-                  <td style={{fontFamily:'var(--mono)',fontSize:12,color:d.amount?'var(--teal)':'var(--text3)'}}>{d.amount?f$(d.amount):'--'}</td>
-                  <td><span className={'badge '+sc(d.status)}>{SL[d.status]}</span></td>
-                  <td>{d.risk!=null?<span style={{fontSize:12,fontFamily:'var(--mono)',color:rc(d.risk)}}>{d.risk}</span>:'--'}</td>
-                  <td style={{fontFamily:'var(--mono)',fontSize:12,color:d.profit?'var(--green)':'var(--text3)'}}>{d.profit?f$(d.profit):'--'}</td>
-                </tr>
-              ))}</tbody>
+              <thead><tr><th>Business</th><th>Broker</th><th>Amount</th><th>Status</th><th>Risk</th><th>Profit</th></tr></thead>
+              <tbody>
+                {deals.slice(0,8).map(d=>(
+                  <tr key={d.id} className="clickable" onClick={()=>setSel(d)}>
+                    <td>
+                      <div style={{display:'flex',alignItems:'center',gap:5}}>
+                        {isToday(d.submittedAt)&&<div style={{width:5,height:5,borderRadius:'50%',background:'var(--green)',flexShrink:0}}/>}
+                        <div>
+                          <div style={{fontWeight:500,color:'var(--text)',maxWidth:150,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{d.business}</div>
+                          <div style={{fontSize:10,color:'var(--text3)',fontFamily:'var(--mono)'}}>{d.id}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td style={{fontSize:12,color:'var(--text2)',maxWidth:100,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{d.broker}</td>
+                    <td style={{fontFamily:'var(--mono)',fontSize:12,color:d.amount?'var(--teal)':'var(--text3)'}}>{d.amount?f$(d.amount):f$(d.requested)}</td>
+                    <td><span className={'badge '+badgeClass(d.status)}>{STATUS[d.status]}</span></td>
+                    <td>{d.risk!=null?<span style={{fontSize:12,fontFamily:'var(--mono)',color:rc(d.risk)}}>{d.risk}</span>:'--'}</td>
+                    <td style={{fontFamily:'var(--mono)',fontSize:12,color:d.profit?'var(--green)':'var(--text3)'}}>{d.profit?f$(d.profit):'--'}</td>
+                  </tr>
+                ))}
+              </tbody>
             </table>
           </div>
         </div>
-
-        <div style={{display:'flex',flexDirection:'column',gap:12}}>
+        <div style={{display:'flex',flexDirection:'column',gap:10}}>
           <div className="cd">
-            <div style={{fontSize:13,fontWeight:500,color:'var(--text)',marginBottom:12}}>Pipeline status</div>
+            <div style={{fontSize:12,fontWeight:500,color:'var(--text)',marginBottom:10}}>Pipeline</div>
             {['new','scrubbing','underwriting','offered','contracts','bankverify'].map(s=>{
               const cnt=deals.filter(d=>d.status===s).length;
               if(!cnt)return null;
               return(
-                <div key={s} style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
-                  <span className={'badge '+sc(s)}>{SL[s]}</span>
-                  <span style={{fontSize:13,fontFamily:'var(--mono)',color:'var(--text)'}}>{cnt}</span>
+                <div key={s} style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+                  <span className={'badge '+badgeClass(s)}>{STATUS[s]}</span>
+                  <span style={{fontSize:12,fontFamily:'var(--mono)',color:'var(--text)'}}>{cnt}</span>
                 </div>
               );
             })}
           </div>
           <div className="cd">
-            <div style={{fontSize:13,fontWeight:500,color:'var(--text)',marginBottom:10}}>System</div>
+            <div style={{fontSize:12,fontWeight:500,color:'var(--text)',marginBottom:10}}>Automation status</div>
             {[
-              {l:'Gmail watcher',s:'Running every 5 min',c:'green'},
-              {l:'Sheets sync',s:'Running every 15 min',c:'green'},
-              {l:'AI scrubber',s:'Active on all deals',c:'green'},
+              {l:'Gmail watcher',s:'Every 5 min',c:'green'},
+              {l:'Sheets sync',s:'Every 15 min',c:'green'},
+              {l:'AI scrubber',s:'Auto on new deals',c:'green'},
+              {l:'Doc parser',s:'Auto on attachments',c:'green'},
             ].map((i,x)=>(
-              <div key={x} style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
-                <div style={{width:6,height:6,borderRadius:'50%',background:'var(--'+i.c+')',flexShrink:0}}/>
+              <div key={x} style={{display:'flex',alignItems:'center',gap:8,marginBottom:7}}>
+                <div style={{width:5,height:5,borderRadius:'50%',background:'var(--'+i.c+')',flexShrink:0}}/>
                 <div>
                   <div style={{fontSize:12,color:'var(--text)',fontWeight:500}}>{i.l}</div>
-                  <div style={{fontSize:11,color:'var(--text3)'}}>{i.s}</div>
+                  <div style={{fontSize:10,color:'var(--text3)'}}>{i.s}</div>
                 </div>
               </div>
             ))}
@@ -417,32 +465,34 @@ function Pipeline({deals,setSel,setShowNew}){
   const stages=['new','scrubbing','underwriting','offered','docs','contracts','bankverify'];
   return(
     <div className="fa">
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
-        <div style={{fontSize:13,color:'var(--text3)'}}>Active deals in pipeline — click any deal to view details</div>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
+        <div style={{fontSize:13,color:'var(--text3)'}}>Active deals in pipeline</div>
         <button className="btn bp" onClick={()=>setShowNew(true)}>+ New deal</button>
       </div>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:8,overflowX:'auto',minWidth:900}}>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:8,minWidth:900,overflowX:'auto'}}>
         {stages.map(s=>{
           const sd=deals.filter(d=>d.status===s);
           return(
             <div key={s}>
-              <div style={{marginBottom:8,padding:'5px 8px',background:'var(--bg3)',borderRadius:'var(--radius)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                <span style={{fontSize:10,fontFamily:'var(--mono)',color:'var(--text2)',textTransform:'uppercase'}}>{SL[s]}</span>
-                <span style={{fontSize:10,fontFamily:'var(--mono)',color:'var(--text3)',background:'var(--bg4)',padding:'1px 5px',borderRadius:8}}>{sd.length}</span>
+              <div style={{marginBottom:6,padding:'4px 7px',background:'var(--bg3)',borderRadius:'var(--radius)',display:'flex',justifyContent:'space-between'}}>
+                <span style={{fontSize:9,fontFamily:'var(--mono)',color:'var(--text2)',textTransform:'uppercase'}}>{STATUS[s]}</span>
+                <span style={{fontSize:9,fontFamily:'var(--mono)',color:'var(--text3)'}}>{sd.length}</span>
               </div>
-              {sd.map(d=>(
-                <div key={d.id} className="deal-card" onClick={()=>setSel(d)}>
-                  <div style={{fontSize:11,fontWeight:500,color:'var(--text)',marginBottom:2,display:'flex',alignItems:'center',gap:4}}>
-                    {isToday(d.submittedFull)&&<span className="new-dot"/>}
-                    <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',display:'block'}}>{d.business}</span>
+              <div className="deal-col">
+                {sd.map(d=>(
+                  <div key={d.id} className="deal-card" onClick={()=>setSel(d)}>
+                    <div style={{fontSize:11,fontWeight:500,color:'var(--text)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',marginBottom:2,display:'flex',alignItems:'center',gap:4}}>
+                      {isToday(d.submittedAt)&&<div style={{width:4,height:4,borderRadius:'50%',background:'var(--green)',flexShrink:0}}/>}
+                      {d.business}
+                    </div>
+                    <div style={{fontSize:9,color:'var(--text3)',fontFamily:'var(--mono)',marginBottom:4}}>{d.id}</div>
+                    <div style={{fontSize:11,fontFamily:'var(--mono)',color:d.amount?'var(--teal)':'var(--text3)'}}>{d.amount?f$(d.amount):f$(d.requested)}</div>
+                    {d.risk!=null&&<div style={{marginTop:4}}><div className="sbar"><div className="sfill" style={{width:d.risk+'%',background:rc(d.risk)}}/></div></div>}
+                    {d.profit&&<div style={{fontSize:10,color:'var(--green)',fontFamily:'var(--mono)',marginTop:3}}>+{f$(d.profit)}</div>}
                   </div>
-                  <div style={{fontSize:10,color:'var(--text3)',fontFamily:'var(--mono)',marginBottom:4}}>{d.id}</div>
-                  <div style={{fontSize:11,fontFamily:'var(--mono)',color:d.amount?'var(--teal)':'var(--text3)'}}>{d.amount?f$(d.amount):f$(d.requested)}</div>
-                  {d.risk!=null&&<div style={{marginTop:4}}><div className="sb2"><div className="sf" style={{width:d.risk+'%',background:rc(d.risk)}}/></div></div>}
-                  {d.profit&&<div style={{fontSize:10,color:'var(--green)',fontFamily:'var(--mono)',marginTop:3}}>+{f$(d.profit)}</div>}
-                </div>
-              ))}
-              {!sd.length&&<div style={{padding:12,textAlign:'center',fontSize:10,color:'var(--text3)'}}>empty</div>}
+                ))}
+                {!sd.length&&<div style={{padding:10,textAlign:'center',fontSize:10,color:'var(--text3)'}}>empty</div>}
+              </div>
             </div>
           );
         })}
@@ -458,47 +508,33 @@ function AllDeals({deals,setSel,setShowNew}){
   const [sortDir,setSortDir]=useState('desc');
 
   const tabs=[
-    {id:'all',l:'All',cnt:deals.length},
-    {id:'today',l:'Today',cnt:deals.filter(d=>isToday(d.submittedFull)).length},
-    {id:'active',l:'Active',cnt:deals.filter(d=>!['funded','declined','offered'].includes(d.status)).length},
-    {id:'approved',l:'Approved',cnt:deals.filter(d=>['offered','docs','contracts','bankverify'].includes(d.status)).length},
-    {id:'funded',l:'Funded',cnt:deals.filter(d=>d.status==='funded').length},
-    {id:'declined',l:'Declined',cnt:deals.filter(d=>d.status==='declined').length},
+    {id:'all',l:'All',n:deals.length},
+    {id:'today',l:'Today',n:deals.filter(d=>isToday(d.submittedAt)).length},
+    {id:'active',l:'Active',n:deals.filter(d=>!['funded','declined','offered'].includes(d.status)).length},
+    {id:'approved',l:'Approved',n:deals.filter(d=>['offered','docs','contracts','bankverify'].includes(d.status)).length},
+    {id:'funded',l:'Funded',n:deals.filter(d=>d.status==='funded').length},
+    {id:'declined',l:'Declined',n:deals.filter(d=>d.status==='declined').length},
   ];
 
-  const filt=d=>{
-    if(srch){
-      const s=srch.toLowerCase();
-      if(!d.business.toLowerCase().includes(s)&&!d.id.toLowerCase().includes(s)&&!d.broker.toLowerCase().includes(s)&&!d.contact.toLowerCase().includes(s))return false;
-    }
-    if(tab==='today')return isToday(d.submittedFull);
+  const filtered=deals.filter(d=>{
+    if(srch){const s=srch.toLowerCase();if(!d.business.toLowerCase().includes(s)&&!d.id.toLowerCase().includes(s)&&!d.broker.toLowerCase().includes(s)&&!d.contact.toLowerCase().includes(s))return false;}
+    if(tab==='today')return isToday(d.submittedAt);
     if(tab==='active')return!['funded','declined','offered'].includes(d.status);
     if(tab==='approved')return['offered','docs','contracts','bankverify'].includes(d.status);
     if(tab==='funded')return d.status==='funded';
     if(tab==='declined')return d.status==='declined';
     return true;
-  };
-
-  const sortFn=(a,b)=>{
+  }).sort((a,b)=>{
     let av,bv;
     if(sortCol==='risk'){av=a.risk||0;bv=b.risk||0;}
     else if(sortCol==='amount'){av=a.amount||a.requested||0;bv=b.amount||b.requested||0;}
     else if(sortCol==='profit'){av=a.profit||0;bv=b.profit||0;}
-    else if(sortCol==='business'){av=a.business||'';bv=b.business||'';}
-    else{av=a.submittedFull||'';bv=b.submittedFull||'';}
-    if(av<bv)return sortDir==='asc'?-1:1;
-    if(av>bv)return sortDir==='asc'?1:-1;
-    return 0;
-  };
+    else{av=a.submittedAt||'';bv=b.submittedAt||'';}
+    return sortDir==='asc'?(av>bv?1:-1):(av<bv?1:-1);
+  });
 
-  const toggleSort=(col)=>{
-    if(sortCol===col)setSortDir(d=>d==='asc'?'desc':'asc');
-    else{setSortCol(col);setSortDir('desc');}
-  };
-
-  const filtered=deals.filter(filt).sort(sortFn);
   const Th=({col,label})=>(
-    <th onClick={()=>toggleSort(col)} style={{cursor:'pointer'}}>
+    <th style={{cursor:'pointer'}} onClick={()=>{if(sortCol===col)setSortDir(d=>d==='asc'?'desc':'asc');else{setSortCol(col);setSortDir('desc');}}}>
       {label}{sortCol===col?(sortDir==='asc'?' ^':' v'):''}
     </th>
   );
@@ -507,43 +543,32 @@ function AllDeals({deals,setSel,setShowNew}){
     <div className="fa">
       <div className="filter-row">
         <div className="search-wrap">
-          <span className="search-icon">S</span>
-          <input className="fi" placeholder="Search by business, broker, deal #, contact..." value={srch} onChange={e=>setSrch(e.target.value)}/>
+          <span className="si">S</span>
+          <input className="fi" placeholder="Search business, broker, deal #..." value={srch} onChange={e=>setSrch(e.target.value)}/>
         </div>
         <button className="btn bp" onClick={()=>setShowNew(true)}>+ New deal</button>
       </div>
-
       <div className="tabs">
         {tabs.map(t=>(
           <div key={t.id} className={'tab'+(tab===t.id?' ac':'')} onClick={()=>setTab(t.id)}>
-            {t.l}
-            <span style={{marginLeft:5,fontSize:10,fontFamily:'var(--mono)',padding:'1px 5px',borderRadius:8,background:tab===t.id?'var(--bg4)':'var(--bg3)',color:tab===t.id?'var(--accent)':'var(--text3)'}}>{t.cnt}</span>
+            {t.l} <span style={{fontSize:10,fontFamily:'var(--mono)',marginLeft:3,opacity:.7}}>{t.n}</span>
           </div>
         ))}
       </div>
-
       {tab==='funded'&&filtered.length>0&&(
         <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10,marginBottom:14}}>
-          <div className="sc2" style={{padding:'12px 14px'}}><div className="sl2">Total funded</div><div className="sv" style={{fontSize:18,color:'var(--green)'}}>{f$(filtered.reduce((s,d)=>s+(d.amount||0),0))}</div></div>
-          <div className="sc2" style={{padding:'12px 14px'}}><div className="sl2">Total profit</div><div className="sv" style={{fontSize:18,color:'var(--teal)'}}>{f$(filtered.reduce((s,d)=>s+(d.profit||0),0))}</div></div>
-          <div className="sc2" style={{padding:'12px 14px'}}><div className="sl2">Avg deal</div><div className="sv" style={{fontSize:18}}>{f$(Math.round(filtered.reduce((s,d)=>s+(d.amount||0),0)/Math.max(1,filtered.length)))}</div></div>
+          <div className="sc2" style={{padding:'10px 12px'}}><div className="sl2">Total funded</div><div className="sv" style={{fontSize:16,color:'var(--green)'}}>{f$(filtered.reduce((s,d)=>s+(d.amount||0),0))}</div></div>
+          <div className="sc2" style={{padding:'10px 12px'}}><div className="sl2">Total profit</div><div className="sv" style={{fontSize:16,color:'var(--teal)'}}>{f$(filtered.reduce((s,d)=>s+(d.profit||0),0))}</div></div>
+          <div className="sc2" style={{padding:'10px 12px'}}><div className="sl2">Avg deal</div><div className="sv" style={{fontSize:16}}>{f$(Math.round(filtered.reduce((s,d)=>s+(d.amount||0),0)/Math.max(1,filtered.length)))}</div></div>
         </div>
       )}
-
-      {tab==='declined'&&filtered.length>0&&(
-        <div style={{marginBottom:14,padding:'10px 14px',background:'#ef444410',border:'1px solid #ef444430',borderRadius:'var(--radius-lg)',display:'flex',gap:24}}>
-          <div><div className="sl2">Total declined</div><div style={{fontSize:18,fontWeight:600,fontFamily:'var(--mono)',color:'var(--red)'}}>{filtered.length}</div></div>
-          <div><div className="sl2">Decline rate</div><div style={{fontSize:18,fontWeight:600,fontFamily:'var(--mono)',color:'var(--text)'}}>{deals.length>0?Math.round(filtered.length/deals.length*100):0}%</div></div>
-        </div>
-      )}
-
       <div className="cd" style={{padding:0}}>
         <div className="tw">
           <table className="pt2">
             <thead>
               <tr>
                 <th>Deal #</th>
-                <Th col="business" label="Business"/>
+                <th>Business</th>
                 <th>Broker</th>
                 <Th col="amount" label="Amount"/>
                 <th>Status</th>
@@ -551,130 +576,185 @@ function AllDeals({deals,setSel,setShowNew}){
                 <Th col="profit" label="Profit"/>
                 <th>Rates</th>
                 <Th col="submitted" label="Date"/>
-                <th>Latest note</th>
               </tr>
             </thead>
-            <tbody>{filtered.map(d=>(
-              <tr key={d.id} onClick={()=>setSel(d)}>
-                <td style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--text3)',whiteSpace:'nowrap'}}>
-                  {d.id}
-                  {isToday(d.submittedFull)&&<span style={{marginLeft:4,fontSize:9,background:'var(--green)',color:'#fff',padding:'1px 4px',borderRadius:4}}>NEW</span>}
-                </td>
-                <td>
-                  <div style={{fontWeight:500,color:'var(--text)',maxWidth:160,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{d.business}</div>
-                  <div style={{fontSize:11,color:'var(--text3)'}}>{d.contact}</div>
-                </td>
-                <td style={{color:'var(--text2)',fontSize:12,maxWidth:120,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{d.broker}</td>
-                <td style={{fontFamily:'var(--mono)',fontSize:12}}>
-                  {d.amount?<span style={{color:'var(--teal)'}}>{f$(d.amount)}</span>:<span style={{color:'var(--text3)'}}>{f$(d.requested)}</span>}
-                </td>
-                <td><span className={'badge '+sc(d.status)}>{SL[d.status]}</span></td>
-                <td>
-                  {d.risk!=null&&(
-                    <div>
-                      <span style={{fontSize:12,fontFamily:'var(--mono)',color:rc(d.risk)}}>{d.risk}</span>
-                      <div className="sb2" style={{width:50}}><div className="sf" style={{width:d.risk+'%',background:rc(d.risk)}}/></div>
-                    </div>
-                  )}
-                  {d.risk==null&&<span style={{color:'var(--text3)'}}>--</span>}
-                </td>
-                <td style={{fontFamily:'var(--mono)',fontSize:12,color:d.profit?'var(--green)':'var(--text3)'}}>{d.profit?f$(d.profit):'--'}</td>
-                <td style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--text3)',whiteSpace:'nowrap'}}>
-                  {d.factor?d.factor+'x / 1.499x':'--'}
-                </td>
-                <td style={{fontSize:11,color:'var(--text3)',fontFamily:'var(--mono)',whiteSpace:'nowrap'}}>{d.submitted}</td>
-                <td style={{fontSize:11,color:'var(--text2)',maxWidth:150,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
-                  {d.uwNotes?.length>0?d.uwNotes[d.uwNotes.length-1].text:'--'}
-                </td>
-              </tr>
-            ))}</tbody>
+            <tbody>
+              {filtered.map(d=>(
+                <tr key={d.id} className="clickable" onClick={()=>setSel(d)}>
+                  <td style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--text3)',whiteSpace:'nowrap'}}>
+                    {d.id}
+                    {isToday(d.submittedAt)&&<span style={{marginLeft:4,fontSize:9,background:'var(--green)',color:'#fff',padding:'1px 4px',borderRadius:3}}>NEW</span>}
+                  </td>
+                  <td>
+                    <div style={{fontWeight:500,color:'var(--text)',maxWidth:160,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{d.business}</div>
+                    <div style={{fontSize:10,color:'var(--text3)'}}>{d.contact}</div>
+                  </td>
+                  <td style={{fontSize:12,color:'var(--text2)',maxWidth:120,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{d.broker}</td>
+                  <td style={{fontFamily:'var(--mono)',fontSize:12,color:d.amount?'var(--teal)':'var(--text3)'}}>{d.amount?f$(d.amount):f$(d.requested)}</td>
+                  <td><span className={'badge '+badgeClass(d.status)}>{STATUS[d.status]}</span></td>
+                  <td>
+                    {d.risk!=null?(
+                      <div>
+                        <span style={{fontSize:12,fontFamily:'var(--mono)',color:rc(d.risk)}}>{d.risk}</span>
+                        <div className="sbar" style={{width:48,marginTop:2}}><div className="sfill" style={{width:d.risk+'%',background:rc(d.risk)}}/></div>
+                      </div>
+                    ):'--'}
+                  </td>
+                  <td style={{fontFamily:'var(--mono)',fontSize:12,color:d.profit?'var(--green)':'var(--text3)'}}>{d.profit?f$(d.profit):'--'}</td>
+                  <td style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--text3)',whiteSpace:'nowrap'}}>{d.factor?pct(d.factor)+' / 1.499x':'--'}</td>
+                  <td style={{fontSize:11,color:'var(--text3)',fontFamily:'var(--mono)',whiteSpace:'nowrap'}}>{d.submitted}</td>
+                </tr>
+              ))}
+            </tbody>
           </table>
         </div>
-        {!filtered.length&&<div className="em"><div className="emi">0</div><div className="emt">No deals match</div></div>}
+        {!filtered.length&&<div className="em"><div className="emt">No deals match</div></div>}
       </div>
     </div>
   );
 }
 
-function DealModal({deal,onClose,onUpd,onRefresh}){
+function DealDetail({deal,onClose,onUpdate,onRefresh,showToast}){
   const [tab,setTab]=useState('overview');
   const [note,setNote]=useState('');
-  const [cat,setCat]=useState('general');
+  const [noteCat,setNoteCat]=useState('general');
   const [advancing,setAdvancing]=useState(false);
   const [scrubbing,setScrubbing]=useState(false);
 
   const steps=['new','scrubbing','underwriting','offered','contracts','bankverify','funded'];
-  const idx=steps.indexOf(deal.status);
+  const stepIdx=steps.indexOf(deal.status);
 
   const flags=[];
   if(deal.nyCourt&&deal.nyCourt!=='clean')flags.push({t:'red',x:'NY Courts: '+deal.nyCourt});
   if(deal.dataMerch&&deal.dataMerch!=='clean')flags.push({t:'amber',x:'DataMerch: '+deal.dataMerch});
-  if(deal.positions>=3)flags.push({t:'red',x:deal.positions+' stacked positions — high risk'});
-  else if(deal.positions>=2)flags.push({t:'amber',x:deal.positions+' positions — review stack'});
-  if(deal.avgDailyBal&&deal.avgDailyBal<1000)flags.push({t:'red',x:'Avg daily balance below $1,000 minimum'});
+  if(deal.positions>=3)flags.push({t:'red',x:deal.positions+' stacked positions'});
+  else if(deal.positions===2)flags.push({t:'amber',x:'2 positions - review stack'});
+  if(deal.dailyBal&&deal.dailyBal<1000)flags.push({t:'red',x:'Avg daily balance below $1,000 minimum'});
   if(deal.monthlyRev&&deal.monthlyRev<35000)flags.push({t:'red',x:'Monthly revenue below $35,000 minimum'});
-  if(!flags.length&&deal.risk&&deal.risk>=65)flags.push({t:'green',x:'All checks passed — strong profile'});
+  if(!flags.length&&deal.risk>=65)flags.push({t:'green',x:'All checks passed'});
 
-  const addNote=()=>{
-    if(!note.trim())return;
-    const n={id:Date.now(),text:note.trim(),category:cat,author:'Underwriter',time:new Date().toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})};
-    onUpd({...deal,uwNotes:[...(deal.uwNotes||[]),n]});
-    setNote('');
-  };
-
-  const advance=async()=>{
-    const next=NEXT[deal.status];
-    if(!next)return;
+  const advanceDeal=async()=>{
+    const next=NEXT_STATUS[deal.status];
+    if(!next||!deal.dbId)return;
     setAdvancing(true);
     try{
-      await fetch('/api/deals/update',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({dbId:deal.dbId,status:next})});
-      onUpd({...deal,status:next});
-    }catch(e){}
+      const r=await fetch('/api/deals/update',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({dbId:deal.dbId,status:next})
+      });
+      const data=await r.json();
+      if(data.success){
+        onUpdate({...deal,status:next});
+        showToast('Advanced to '+STATUS[next]);
+      }else{
+        showToast('Failed to advance','error');
+      }
+    }catch(e){showToast('Error: '+e.message,'error');}
     setAdvancing(false);
+  };
+
+  const declineDeal=async()=>{
+    if(!deal.dbId)return;
+    try{
+      await fetch('/api/deals/update',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({dbId:deal.dbId,status:'declined'})
+      });
+      onUpdate({...deal,status:'declined'});
+      showToast('Deal declined');
+      onClose();
+    }catch(e){showToast('Error','error');}
+  };
+
+  const fundDeal=async()=>{
+    if(!deal.dbId)return;
+    try{
+      await fetch('/api/deals/update',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({dbId:deal.dbId,status:'funded'})
+      });
+      onUpdate({...deal,status:'funded'});
+      showToast('Deal marked as funded!');
+      onClose();
+    }catch(e){showToast('Error','error');}
   };
 
   const runScrub=async()=>{
     if(!deal.dbId)return;
     setScrubbing(true);
     try{
-      const r=await fetch('/api/scrubber/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({dealId:deal.dbId})});
+      const r=await fetch('/api/scrubber/run',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({dealId:deal.dbId})
+      });
       const data=await r.json();
-      if(data.approved!==undefined){
-        onUpd({...deal,status:data.approved?'offered':'declined',risk:data.riskScore,amount:data.approvedAmount,factor:data.buyRate});
+      if(data.riskScore!=null){
+        const updated={
+          ...deal,
+          status:data.approved?'offered':'declined',
+          risk:data.riskScore,
+          amount:data.approvedAmount,
+          factor:data.buyRate,
+          termDays:data.termDays,
+          profit:data.approvedAmount&&data.buyRate?Math.round(data.approvedAmount*(1.499-data.buyRate)):null,
+          payback:data.approvedAmount?Math.round(data.approvedAmount*1.499):null,
+        };
+        onUpdate(updated);
+        showToast('Scrub complete - Risk: '+data.riskScore+'/100');
         onRefresh();
+      }else{
+        showToast('Scrub failed: '+data.error,'error');
       }
-    }catch(e){}
+    }catch(e){showToast('Error: '+e.message,'error');}
     setScrubbing(false);
+  };
+
+  const saveNote=async()=>{
+    if(!note.trim())return;
+    const newNote={
+      id:'local-'+Date.now(),
+      text:note.trim(),
+      cat:noteCat,
+      author:'Underwriter',
+      time:new Date().toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})
+    };
+    onUpdate({...deal,uwNotes:[...(deal.uwNotes||[]),newNote]});
+    setNote('');
+    showToast('Note saved');
   };
 
   return(
     <div className="mo" onClick={e=>{if(e.target===e.currentTarget)onClose()}}>
       <div className="md fa">
         <button className="mc" onClick={onClose}>x</button>
-        <div className="mt">{deal.business}</div>
-        <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:16,flexWrap:'wrap'}}>
-          <span style={{fontSize:11,color:'var(--text3)',fontFamily:'var(--mono)'}}>{deal.id}</span>
-          <span className={'badge '+sc(deal.status)}>{SL[deal.status]}</span>
-          <span style={{fontSize:12,color:'var(--text3)'}}>via {deal.broker}</span>
-          {isToday(deal.submittedFull)&&<span style={{fontSize:10,background:'var(--green)',color:'#fff',padding:'2px 8px',borderRadius:10,fontFamily:'var(--mono)'}}>Today</span>}
-          {deal.uwNotes?.length>0&&<span style={{fontSize:11,fontFamily:'var(--mono)',color:'var(--purple)',background:'#a78bfa15',border:'1px solid #a78bfa30',padding:'2px 8px',borderRadius:10}}>{deal.uwNotes.length} note{deal.uwNotes.length!==1?'s':''}</span>}
+        <div className="mt" style={{paddingRight:30}}>{deal.business}</div>
+        <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:14,flexWrap:'wrap',marginTop:6}}>
+          <span style={{fontSize:10,color:'var(--text3)',fontFamily:'var(--mono)'}}>{deal.id}</span>
+          <span className={'badge '+badgeClass(deal.status)}>{STATUS[deal.status]}</span>
+          <span style={{fontSize:11,color:'var(--text3)'}}>via {deal.broker}</span>
+          {isToday(deal.submittedAt)&&<span style={{fontSize:9,background:'var(--green)',color:'#fff',padding:'2px 7px',borderRadius:10,fontFamily:'var(--mono)'}}>TODAY</span>}
+          {deal.uwNotes?.length>0&&<span style={{fontSize:10,color:'var(--purple)',background:'#a78bfa15',border:'1px solid #a78bfa25',padding:'2px 7px',borderRadius:10,fontFamily:'var(--mono)'}}>{deal.uwNotes.length} notes</span>}
+          {deal.status==='scrubbing'&&<div className="sp"/>}
         </div>
 
         {deal.status!=='declined'&&(
           <div className="ps">
             {steps.map((s,i)=>(
-              <div key={s} className={'pst'+(i<idx?' dn':i===idx?' av':'')}>
-                <div className="psd">{i<idx?'v':i+1}</div>
-                <div className="psl">{SL[s]}</div>
+              <div key={s} className={'pst'+(i<stepIdx?' dn':i===stepIdx?' av':'')}>
+                <div className="psd">{i<stepIdx?'v':i+1}</div>
+                <div className="psl">{STATUS[s]}</div>
               </div>
             ))}
           </div>
         )}
 
         {deal.status==='declined'&&(
-          <div style={{marginBottom:16,padding:'10px 14px',background:'#ef444412',border:'1px solid #ef444430',borderRadius:'var(--radius)',display:'flex',alignItems:'center',gap:10}}>
-            <div style={{fontSize:13,fontWeight:500,color:'var(--red)'}}>Deal declined</div>
-            {deal.uwNotes?.find(n=>n.category==='risk')&&<div style={{fontSize:12,color:'var(--text3)',marginLeft:8}}>{deal.uwNotes.find(n=>n.category==='risk').text.slice(0,100)}</div>}
+          <div style={{marginBottom:14,padding:'8px 12px',background:'#ef444412',border:'1px solid #ef444425',borderRadius:'var(--radius)',fontSize:13,color:'var(--red)'}}>
+            Deal declined — {deal.uwNotes?.find(n=>n.cat==='risk')?.text?.slice(0,80)||'See notes for details'}
           </div>
         )}
 
@@ -682,7 +762,7 @@ function DealModal({deal,onClose,onUpd,onRefresh}){
           {['overview','underwriting','documents','notes','timeline'].map(t=>(
             <div key={t} className={'tab'+(tab===t?' ac':'')} onClick={()=>setTab(t)} style={{textTransform:'capitalize',position:'relative'}}>
               {t}
-              {t==='notes'&&deal.uwNotes?.length>0&&<span style={{position:'absolute',top:6,right:2,width:6,height:6,borderRadius:'50%',background:'var(--purple)'}}/>}
+              {t==='notes'&&deal.uwNotes?.length>0&&<span style={{position:'absolute',top:5,right:1,width:5,height:5,borderRadius:'50%',background:'var(--purple)'}}/>}
             </div>
           ))}
         </div>
@@ -690,57 +770,56 @@ function DealModal({deal,onClose,onUpd,onRefresh}){
         {tab==='overview'&&(
           <div>
             {deal.amount&&(
-              <div className="oc" style={{marginBottom:14}}>
+              <div className="oc" style={{marginBottom:12}}>
                 <div className="ol">Approved offer</div>
                 <div className="oa">{f$(deal.amount)}</div>
                 <div className="om">
-                  <div><div className="omv">{deal.factor}x</div><div className="oml">Buy rate</div></div>
+                  <div><div className="omv">{pct(deal.factor)}</div><div className="oml">Buy rate</div></div>
                   <div><div className="omv">1.499x</div><div className="oml">Sell rate</div></div>
-                  <div><div className="omv">{deal.termDays||((deal.term||0)*30)} days</div><div className="oml">Term</div></div>
+                  <div><div className="omv">{deal.termDays||'--'} days</div><div className="oml">Term</div></div>
                   <div><div className="omv" style={{color:'var(--green)'}}>{f$(deal.profit)}</div><div className="oml">Our profit</div></div>
-                  {deal.balance&&<div><div className="omv" style={{color:'var(--amber)'}}>{f$(deal.balance)}</div><div className="oml">Balance</div></div>}
                 </div>
               </div>
             )}
             {deal.amount&&(
-              <div className="profit-box" style={{marginBottom:14}}>
-                <div style={{display:'flex',justifyContent:'space-between',flexWrap:'wrap',gap:10}}>
-                  <div><div className="sl2">Merchant payback</div><div style={{fontSize:15,fontFamily:'var(--mono)',color:'var(--text)'}}>{f$(deal.merchantPayback)}</div></div>
-                  <div><div className="sl2">Our cost</div><div style={{fontSize:15,fontFamily:'var(--mono)',color:'var(--text)'}}>{f$(Math.round(deal.amount*deal.factor))}</div></div>
-                  <div><div className="sl2">Our profit</div><div style={{fontSize:15,fontFamily:'var(--mono)',color:'var(--green)',fontWeight:600}}>{f$(deal.profit)}</div></div>
-                  <div><div className="sl2">Daily payment</div><div style={{fontSize:15,fontFamily:'var(--mono)',color:'var(--amber)'}}>{f$(deal.merchantPayback&&deal.termDays?Math.round(deal.merchantPayback/deal.termDays):null)}</div></div>
+              <div className="profit-box" style={{marginBottom:12}}>
+                <div style={{display:'flex',gap:16,flexWrap:'wrap'}}>
+                  <div><div className="sl2">Merchant payback</div><div style={{fontSize:14,fontFamily:'var(--mono)',color:'var(--text)',marginTop:2}}>{f$(deal.payback)}</div></div>
+                  <div><div className="sl2">Our cost</div><div style={{fontSize:14,fontFamily:'var(--mono)',color:'var(--text)',marginTop:2}}>{f$(deal.factor?Math.round(deal.amount*deal.factor):null)}</div></div>
+                  <div><div className="sl2">Our profit</div><div style={{fontSize:14,fontFamily:'var(--mono)',color:'var(--green)',fontWeight:600,marginTop:2}}>{f$(deal.profit)}</div></div>
+                  <div><div className="sl2">Daily payment</div><div style={{fontSize:14,fontFamily:'var(--mono)',color:'var(--amber)',marginTop:2}}>{f$(deal.payback&&deal.termDays?Math.round(deal.payback/deal.termDays):null)}</div></div>
                 </div>
               </div>
             )}
-            <div className="df">
-              <div className="dff"><div className="dl">Contact</div><div className="dv">{deal.contact||'--'}</div></div>
-              <div className="dff"><div className="dl">Email</div><div className="dv" style={{fontSize:12}}>{deal.contactEmail||'--'}</div></div>
-              <div className="dff"><div className="dl">Requested</div><div className="dv">{f$(deal.requested)}</div></div>
-              <div className="dff"><div className="dl">Submitted</div><div className="dv">{deal.submitted}</div></div>
-              <div className="dff"><div className="dl">Monthly revenue</div><div className="dv" style={{color:deal.monthlyRev>=35000?'var(--green)':deal.monthlyRev?'var(--red)':'var(--text)'}}>{f$(deal.monthlyRev)}</div></div>
-              <div className="dff"><div className="dl">Avg daily balance</div><div className="dv" style={{color:deal.avgDailyBal>=1000?'var(--green)':deal.avgDailyBal?'var(--red)':'var(--text)'}}>{f$(deal.avgDailyBal)}</div></div>
+            <div className="dg">
+              <div className="df"><div className="dl">Contact</div><div className="dv">{deal.contact||'--'}</div></div>
+              <div className="df"><div className="dl">Email</div><div className="dv" style={{fontSize:12,wordBreak:'break-all'}}>{deal.email||'--'}</div></div>
+              <div className="df"><div className="dl">Requested</div><div className="dv">{f$(deal.requested)}</div></div>
+              <div className="df"><div className="dl">Submitted</div><div className="dv">{deal.submitted}</div></div>
+              <div className="df"><div className="dl">Monthly revenue</div><div className="dv" style={{color:deal.monthlyRev>=35000?'var(--green)':deal.monthlyRev?'var(--red)':'inherit'}}>{f$(deal.monthlyRev)}</div></div>
+              <div className="df"><div className="dl">Avg daily balance</div><div className="dv" style={{color:deal.dailyBal>=1000?'var(--green)':deal.dailyBal?'var(--red)':'inherit'}}>{f$(deal.dailyBal)}</div></div>
             </div>
-            {deal.notes&&<div style={{marginTop:10,padding:'8px 12px',background:'var(--bg3)',borderRadius:'var(--radius)',fontSize:12,color:'var(--text2)'}}>{deal.notes.slice(0,300)}</div>}
+            {deal.notes&&<div style={{marginTop:10,padding:'8px 11px',background:'var(--bg3)',borderRadius:'var(--radius)',fontSize:12,color:'var(--text2)'}}>{deal.notes.slice(0,300)}</div>}
           </div>
         )}
 
         {tab==='underwriting'&&(
           <div>
-            <div style={{marginBottom:14}}>
-              <div style={{display:'flex',justifyContent:'space-between',marginBottom:6}}>
+            <div style={{marginBottom:12}}>
+              <div style={{display:'flex',justifyContent:'space-between',marginBottom:5}}>
                 <span style={{fontSize:13,color:'var(--text)'}}>Risk score</span>
-                <span style={{fontSize:14,fontFamily:'var(--mono)',color:rc(deal.risk||0)}}>{deal.risk!=null?deal.risk+'/100':'Pending'}</span>
+                <span style={{fontSize:13,fontFamily:'var(--mono)',color:rc(deal.risk||0),fontWeight:600}}>{deal.risk!=null?deal.risk+' / 100':'Not scrubbed yet'}</span>
               </div>
-              {deal.risk!=null&&<div className="sb2" style={{height:8}}><div className="sf" style={{width:deal.risk+'%',background:rc(deal.risk)}}/></div>}
+              {deal.risk!=null&&<div className="sbar" style={{height:7}}><div className="sfill" style={{width:deal.risk+'%',background:rc(deal.risk)}}/></div>}
             </div>
-            <div className="df" style={{marginBottom:14}}>
-              <div className="dff"><div className="dl">Positions</div><div className="dv" style={{color:deal.positions>=3?'var(--red)':deal.positions>=2?'var(--amber)':'var(--green)'}}>{deal.positions} position{deal.positions!==1?'s':''}</div></div>
-              <div className="dff"><div className="dl">NY Courts</div><div className="dv" style={{color:deal.nyCourt==='clean'?'var(--green)':'var(--red)'}}>{deal.nyCourt||'Pending'}</div></div>
-              <div className="dff"><div className="dl">DataMerch</div><div className="dv" style={{color:deal.dataMerch==='clean'?'var(--green)':'var(--amber)'}}>{deal.dataMerch||'Pending'}</div></div>
-              <div className="dff"><div className="dl">Avg daily bal</div><div className="dv">{f$(deal.avgDailyBal)}</div></div>
+            <div className="dg" style={{marginBottom:12}}>
+              <div className="df"><div className="dl">Positions</div><div className="dv" style={{color:deal.positions>=3?'var(--red)':deal.positions>=2?'var(--amber)':'var(--green)'}}>{deal.positions} position{deal.positions!==1?'s':''}</div></div>
+              <div className="df"><div className="dl">NY Courts</div><div className="dv" style={{color:deal.nyCourt==='clean'?'var(--green)':'var(--red)'}}>{deal.nyCourt||'Pending'}</div></div>
+              <div className="df"><div className="dl">DataMerch</div><div className="dv" style={{color:deal.dataMerch==='clean'?'var(--green)':'var(--amber)'}}>{deal.dataMerch||'Pending'}</div></div>
+              <div className="df"><div className="dl">Monthly revenue</div><div className="dv" style={{color:deal.monthlyRev>=35000?'var(--green)':deal.monthlyRev?'var(--red)':'inherit'}}>{f$(deal.monthlyRev)}</div></div>
             </div>
             {flags.map((fl,i)=><div key={i} className={'rf '+fl.t}><span style={{fontSize:12,color:'var(--text2)'}}>{fl.x}</span></div>)}
-            {!flags.length&&<div style={{textAlign:'center',padding:20,color:'var(--text3)',fontSize:13}}>Run scrubber to see full underwriting analysis</div>}
+            {!flags.length&&deal.risk==null&&<div style={{textAlign:'center',padding:20,color:'var(--text3)',fontSize:13}}>Run the AI scrubber to see underwriting results</div>}
           </div>
         )}
 
@@ -753,12 +832,12 @@ function DealModal({deal,onClose,onUpd,onRefresh}){
               {n:'Signed contract',ok:['bankverify','funded'].includes(deal.status)},
               {n:'Business license',ok:false},
             ].map((d,i)=>(
-              <div key={i} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 12px',background:'var(--bg3)',borderRadius:'var(--radius)',marginBottom:8}}>
+              <div key={i} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'9px 12px',background:'var(--bg3)',borderRadius:'var(--radius)',marginBottom:8}}>
                 <span style={{fontSize:13,color:'var(--text)'}}>{d.n}</span>
-                <span className={'badge '+(d.ok?'badge-funded':'badge-underwriting')}>{d.ok?'received':'pending'}</span>
+                <span className={'badge '+(d.ok?'bfu':'buw')}>{d.ok?'received':'pending'}</span>
               </div>
             ))}
-            <div className="uz" style={{marginTop:8}}>
+            <div style={{border:'2px dashed var(--border3)',borderRadius:'var(--radius-lg)',padding:'20px',textAlign:'center',cursor:'pointer',marginTop:8}}>
               <div style={{fontSize:13,color:'var(--text2)'}}>Drop files here or click to upload</div>
               <div style={{fontSize:11,color:'var(--text3)',marginTop:4}}>PDF, JPG, PNG up to 20MB</div>
             </div>
@@ -767,22 +846,22 @@ function DealModal({deal,onClose,onUpd,onRefresh}){
 
         {tab==='notes'&&(
           <div>
-            <div style={{marginBottom:14,padding:14,background:'var(--bg3)',borderRadius:'var(--radius-lg)',border:'1px solid var(--border2)'}}>
-              <div style={{fontSize:12,fontWeight:500,color:'var(--text)',marginBottom:10}}>Add underwriter note</div>
-              <div style={{display:'flex',gap:5,marginBottom:10,flexWrap:'wrap'}}>
+            <div style={{marginBottom:12,padding:12,background:'var(--bg3)',borderRadius:'var(--radius-lg)',border:'1px solid var(--border2)'}}>
+              <div style={{fontSize:12,fontWeight:500,color:'var(--text)',marginBottom:8}}>Add underwriter note</div>
+              <div style={{display:'flex',gap:5,marginBottom:8,flexWrap:'wrap'}}>
                 {['general','risk','approval','condition','followup'].map(c=>(
-                  <button key={c} onClick={()=>setCat(c)} style={{padding:'3px 10px',borderRadius:20,fontSize:11,cursor:'pointer',border:'1px solid '+(cat===c?cc[c]:'var(--border)'),background:cat===c?cc[c]+'22':'transparent',color:cat===c?cc[c]:'var(--text3)',transition:'all .15s',fontFamily:'var(--font)'}}>{c}</button>
+                  <button key={c} onClick={()=>setNoteCat(c)} style={{padding:'2px 9px',borderRadius:20,fontSize:11,cursor:'pointer',border:'1px solid '+(noteCat===c?NOTE_COLORS[c]:'var(--border)'),background:noteCat===c?NOTE_COLORS[c]+'22':'transparent',color:noteCat===c?NOTE_COLORS[c]:'var(--text3)',transition:'all .15s',fontFamily:'var(--font)'}}>{c}</button>
                 ))}
               </div>
-              <textarea className="fi" style={{minHeight:64,marginBottom:8}} placeholder="Add your underwriting note..." value={note} onChange={e=>setNote(e.target.value)}/>
-              <button className="btn bp bs" onClick={addNote} disabled={!note.trim()}>Save note</button>
+              <textarea className="fi" style={{minHeight:60,marginBottom:7}} placeholder="Add underwriting note..." value={note} onChange={e=>setNote(e.target.value)}/>
+              <button className="btn bp bs" onClick={saveNote} disabled={!note.trim()}>Save note</button>
             </div>
-            {!(deal.uwNotes||[]).length&&<div className="em"><div className="emi">N</div><div className="emt">No notes yet</div></div>}
+            {!(deal.uwNotes||[]).length&&<div className="em"><div className="emt">No notes yet</div></div>}
             {(deal.uwNotes||[]).slice().reverse().map(n=>(
-              <div key={n.id} className={'note-card '+(n.category||'general')}>
-                <div style={{display:'flex',justifyContent:'space-between',marginBottom:5}}>
-                  <span style={{fontSize:10,fontFamily:'var(--mono)',textTransform:'uppercase',color:cc[n.category]||'var(--text3)'}}>{n.category}</span>
-                  <span style={{fontSize:11,color:'var(--text3)',fontFamily:'var(--mono)'}}>{n.author} - {n.time}</span>
+              <div key={n.id} className={'note-card '+(n.cat||'general')}>
+                <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
+                  <span style={{fontSize:9,fontFamily:'var(--mono)',textTransform:'uppercase',color:NOTE_COLORS[n.cat]||'var(--text3)'}}>{n.cat}</span>
+                  <span style={{fontSize:10,color:'var(--text3)',fontFamily:'var(--mono)'}}>{n.author} - {n.time}</span>
                 </div>
                 <div style={{fontSize:13,color:'var(--text)',lineHeight:1.5}}>{n.text}</div>
               </div>
@@ -793,38 +872,40 @@ function DealModal({deal,onClose,onUpd,onRefresh}){
         {tab==='timeline'&&(
           <div className="tl">
             {[
-              {t:deal.submitted+' 09:00',x:'Deal submitted via email',d:''},
-              deal.status!=='new'&&{t:deal.submitted,x:'AI scrubber started automatically',d:''},
-              deal.risk&&{t:deal.submitted,x:'Scrub complete - risk score '+deal.risk+'/100 | NY courts: '+(deal.nyCourt||'--')+' | DataMerch: '+(deal.dataMerch||'--'),d:deal.risk>=65?'green':'amber'},
-              deal.amount&&{t:deal.submitted,x:'Offer priced: '+f$(deal.amount)+' @ '+deal.factor+'x buy / 1.499x sell | Profit: '+f$(deal.profit),d:'green'},
+              deal.submitted&&{t:deal.submitted,x:'Deal submitted via email from '+deal.broker,d:''},
+              deal.status!=='new'&&{t:deal.submitted,x:'AI scrubber triggered automatically',d:''},
+              deal.risk&&{t:deal.submitted,x:'Scrub complete - Risk: '+deal.risk+'/100 | NY Courts: '+(deal.nyCourt||'--')+' | DataMerch: '+(deal.dataMerch||'--'),d:deal.risk>=65?'green':'amber'},
+              deal.amount&&{t:deal.submitted,x:'Offer priced: '+f$(deal.amount)+' @ '+pct(deal.factor)+' buy / 1.499x sell | Profit: '+f$(deal.profit),d:'green'},
               deal.status==='funded'&&{t:deal.funded||'',x:'Funded - ACH disbursement sent',d:'green'},
               deal.status==='declined'&&{t:deal.submitted,x:'Deal declined',d:'red'},
-              ...(deal.uwNotes||[]).map(n=>({t:n.time,x:n.author+' added note: "'+n.text.slice(0,60)+'"',d:''})),
+              ...(deal.uwNotes||[]).filter(n=>n.cat!=='system').map(n=>({t:n.time,x:n.author+' - '+n.text.slice(0,80),d:''})),
             ].filter(Boolean).map((e,i)=>(
               <div key={i} className="tli">
-                <div className={'tld '+e.d}/>
+                <div className={'tld '+(e.d||'')}/>
                 <div><div className="tltx">{e.x}</div><div className="tlt">{e.t}</div></div>
               </div>
             ))}
           </div>
         )}
 
-        <div className="dv2"/>
-        <div className="action-bar">
+        <div className="divider"/>
+        <div className="action-row">
           {['new','scrubbing','underwriting'].includes(deal.status)&&(
             <button className="btn bam bs" onClick={runScrub} disabled={scrubbing}>
-              {scrubbing?'Scrubbing...':'Run AI Scrub'}
+              {scrubbing?<span style={{display:'flex',alignItems:'center',gap:6}}><div className="sp"/>Scrubbing...</span>:'Run AI Scrub'}
             </button>
           )}
-          {deal.status==='offered'&&<button className="btn bp bs" onClick={()=>{onUpd({...deal,status:'contracts'});onClose()}}>Generate contracts</button>}
-          {deal.status==='contracts'&&<button className="btn bp bs">Send via DocuSign</button>}
-          {deal.status==='bankverify'&&<button className="btn bsu bs" onClick={()=>{onUpd({...deal,status:'funded'});onClose()}}>Mark funded</button>}
-          {!['funded','declined'].includes(deal.status)&&NEXT[deal.status]&&(
-            <button className="btn bg bs" onClick={advance} disabled={advancing}>
-              {advancing?'...':'Advance to '+SL[NEXT[deal.status]]}
+          {deal.status==='offered'&&<button className="btn bp bs" onClick={()=>{onUpdate({...deal,status:'contracts'});showToast('Moved to contracts');}}>Generate contracts</button>}
+          {deal.status==='contracts'&&<button className="btn bp bs">Send DocuSign</button>}
+          {deal.status==='bankverify'&&<button className="btn bsu bs" onClick={fundDeal}>Mark as funded</button>}
+          {!['funded','declined'].includes(deal.status)&&NEXT_STATUS[deal.status]&&(
+            <button className="btn bg bs" onClick={advanceDeal} disabled={advancing}>
+              {advancing?'...':`Advance to ${STATUS[NEXT_STATUS[deal.status]]}`}
             </button>
           )}
-          {!['funded','declined'].includes(deal.status)&&<button className="btn bd bs" onClick={()=>{onUpd({...deal,status:'declined'});onClose()}}>Decline deal</button>}
+          {!['funded','declined'].includes(deal.status)&&(
+            <button className="btn bd bs" onClick={declineDeal}>Decline</button>
+          )}
           <button className="btn bg bs" onClick={onClose}>Close</button>
         </div>
       </div>
@@ -842,29 +923,29 @@ function NewDeal({onClose,onSave}){
     setStep(1);
     setTimeout(()=>{
       const risk=Math.floor(Math.random()*50+40);
-      setRes({risk,avgDailyBal:Math.floor(Math.random()*15000+2000),monthlyRev:Math.floor(Math.random()*80000+15000),nyCourt:Math.random()>.8?'1 default':'clean',dataMerch:Math.random()>.9?'flagged':'clean'});
+      setRes({risk,dailyBal:Math.floor(Math.random()*12000+2000),monthlyRev:Math.floor(Math.random()*70000+15000),nyCourt:Math.random()>.8?'1 default':'clean',dataMerch:Math.random()>.9?'flagged':'clean'});
       setStep(2);
     },2500);
   };
 
   const save=()=>{
-    const r=res||{};const risk=r.risk||null;
+    const r=res||{};
+    const risk=r.risk||null;
     const amount=risk>=50?Math.round(parseInt(f.requested||0)*0.85/1000)*1000:null;
+    const buyRate=risk>=70?1.22:risk>=60?1.29:1.38;
     onSave({
       id:'D-NEW-'+Date.now(),dbId:null,
-      business:f.business,contact:f.contact,contactEmail:f.email,
+      business:f.business,contact:f.contact,email:f.email,
       broker:f.broker,requested:parseInt(f.requested)||0,
       status:risk>=50?'offered':'declined',risk,
-      factor:risk>=70?1.22:risk>=60?1.29:1.38,
-      term:risk>=70?4:3,termDays:risk>=70?120:90,
-      positions:0,avgDailyBal:r.avgDailyBal||null,
-      monthlyRev:r.monthlyRev||null,
-      nyCourt:r.nyCourt||null,dataMerch:r.dataMerch||null,
+      factor:buyRate,termDays:risk>=70?120:90,
+      positions:0,dailyBal:r.dailyBal,monthlyRev:r.monthlyRev,
+      nyCourt:r.nyCourt,dataMerch:r.dataMerch,
       amount,submitted:new Date().toISOString().slice(0,10),
-      submittedFull:new Date().toISOString(),
+      submittedAt:new Date().toISOString(),
       funded:null,balance:null,notes:f.notes,uwNotes:[],
-      profit:amount?Math.round(amount*(1.499-(risk>=70?1.22:risk>=60?1.29:1.38))):null,
-      merchantPayback:amount?Math.round(amount*1.499):null,
+      profit:amount?Math.round(amount*(1.499-buyRate)):null,
+      payback:amount?Math.round(amount*1.499):null,
     });
     onClose();
   };
@@ -874,8 +955,8 @@ function NewDeal({onClose,onSave}){
       <div className="md fa">
         <button className="mc" onClick={onClose}>x</button>
         <div className="mt">New deal intake</div>
-        <div style={{fontSize:13,color:'var(--text3)',marginBottom:18}}>Submit a deal for automated scrubbing and underwriting</div>
-        <div className="ps" style={{marginBottom:20}}>
+        <div style={{fontSize:12,color:'var(--text3)',marginBottom:16,marginTop:4}}>Submit for automated scrubbing and underwriting</div>
+        <div className="ps" style={{marginBottom:16}}>
           {['Application','AI Scrubbing','Decision'].map((s,i)=>(
             <div key={i} className={'pst'+(i<step?' dn':i===step?' av':'')}>
               <div className="psd">{i<step?'v':i+1}</div>
@@ -888,36 +969,34 @@ function NewDeal({onClose,onSave}){
             <div className="fg">
               <div className="fgg"><label className="fl">Business name *</label><input className="fi" placeholder="Acme Corp LLC" value={f.business} onChange={e=>set('business',e.target.value)}/></div>
               <div className="fgg"><label className="fl">Contact name</label><input className="fi" placeholder="John Smith" value={f.contact} onChange={e=>set('contact',e.target.value)}/></div>
-              <div className="fgg"><label className="fl">Contact email</label><input className="fi" placeholder="john@business.com" type="email" value={f.email} onChange={e=>set('email',e.target.value)}/></div>
+              <div className="fgg"><label className="fl">Contact email</label><input className="fi" placeholder="john@business.com" value={f.email} onChange={e=>set('email',e.target.value)}/></div>
               <div className="fgg"><label className="fl">Broker / ISO *</label><input className="fi" placeholder="Broker name or email" value={f.broker} onChange={e=>set('broker',e.target.value)}/></div>
-              <div className="fgg"><label className="fl">Amount requested</label><input className="fi" placeholder="50000" type="number" value={f.requested} onChange={e=>set('requested',e.target.value)}/></div>
+              <div className="fgg"><label className="fl">Amount requested</label><input className="fi" type="number" placeholder="50000" value={f.requested} onChange={e=>set('requested',e.target.value)}/></div>
               <div className="fgg"><label className="fl">Notes</label><textarea className="fi" placeholder="Position info, industry, context..." value={f.notes} onChange={e=>set('notes',e.target.value)}/></div>
             </div>
-            <div style={{marginTop:16,display:'flex',gap:8}}>
+            <div style={{marginTop:14,display:'flex',gap:8}}>
               <button className="btn bp" onClick={run} disabled={!f.business||!f.broker}>Run AI Scrubber</button>
               <button className="btn bg bs" onClick={onClose}>Cancel</button>
             </div>
           </>
         )}
         {step===1&&(
-          <div style={{textAlign:'center',padding:'40px 0'}}>
-            <div className="sp" style={{width:28,height:28,borderWidth:3,marginBottom:16}}/>
-            <div style={{fontSize:14,color:'var(--text)',marginBottom:8}}>Running automated scrub...</div>
+          <div style={{textAlign:'center',padding:'36px 0'}}>
+            <div className="sp" style={{width:28,height:28,margin:'0 auto 14px'}}/>
+            <div style={{fontSize:14,color:'var(--text)',marginBottom:6}}>Running automated scrub...</div>
             <div style={{fontSize:12,color:'var(--text3)'}}>Checking guidelines - NY Courts - DataMerch</div>
           </div>
         )}
         {step===2&&res&&(
           <div className="fa">
-            <div className="df" style={{marginBottom:14}}>
-              <div className="dff"><div className="dl">Risk score</div><div className="dv" style={{color:rc(res.risk)}}>{res.risk}/100</div></div>
-              <div className="dff"><div className="dl">Avg daily balance</div><div className="dv">{f$(res.avgDailyBal)}</div></div>
-              <div className="dff"><div className="dl">NY Courts</div><div className="dv" style={{color:res.nyCourt==='clean'?'var(--green)':'var(--red)'}}>{res.nyCourt}</div></div>
-              <div className="dff"><div className="dl">DataMerch</div><div className="dv" style={{color:res.dataMerch==='clean'?'var(--green)':'var(--amber)'}}>{res.dataMerch}</div></div>
-              <div className="dff"><div className="dl">Decision</div><div className="dv" style={{color:res.risk>=50?'var(--green)':'var(--red)'}}>{res.risk>=50?'APPROVE':'DECLINE'}</div></div>
-              <div className="dff"><div className="dl">Sell rate</div><div className="dv">1.499x (fixed)</div></div>
+            <div className="dg" style={{marginBottom:12}}>
+              <div className="df"><div className="dl">Risk score</div><div className="dv" style={{color:rc(res.risk)}}>{res.risk}/100</div></div>
+              <div className="df"><div className="dl">Decision</div><div className="dv" style={{color:res.risk>=50?'var(--green)':'var(--red)',fontWeight:600}}>{res.risk>=50?'APPROVE':'DECLINE'}</div></div>
+              <div className="df"><div className="dl">NY Courts</div><div className="dv" style={{color:res.nyCourt==='clean'?'var(--green)':'var(--red)'}}>{res.nyCourt}</div></div>
+              <div className="df"><div className="dl">DataMerch</div><div className="dv" style={{color:res.dataMerch==='clean'?'var(--green)':'var(--amber)'}}>{res.dataMerch}</div></div>
             </div>
             {res.risk>=50&&(
-              <div className="oc" style={{marginBottom:14}}>
+              <div className="oc" style={{marginBottom:12}}>
                 <div className="ol">Suggested offer</div>
                 <div className="oa">{f$(Math.round(parseInt(f.requested||0)*0.85/1000)*1000)}</div>
                 <div className="om">
@@ -938,101 +1017,98 @@ function NewDeal({onClose,onSave}){
   );
 }
 
-function BrokersPage({deals}){
+function Brokers({deals}){
   const [sel,setSel]=useState(null);
-  const brokerMap={};
+  const bmap={};
   deals.forEach(d=>{
     const k=d.broker;
     if(!k||k==='Unknown')return;
-    if(!brokerMap[k])brokerMap[k]={name:k,total:0,funded:0,declined:0,volume:0,active:0};
-    brokerMap[k].total++;
-    if(d.status==='funded'){brokerMap[k].funded++;brokerMap[k].volume+=d.amount||0;}
-    if(d.status==='declined')brokerMap[k].declined++;
-    if(!['funded','declined'].includes(d.status))brokerMap[k].active++;
+    if(!bmap[k])bmap[k]={name:k,total:0,funded:0,declined:0,volume:0,active:0};
+    bmap[k].total++;
+    if(d.status==='funded'){bmap[k].funded++;bmap[k].volume+=d.amount||0;}
+    if(d.status==='declined')bmap[k].declined++;
+    if(!['funded','declined'].includes(d.status))bmap[k].active++;
   });
-  const brokers=Object.values(brokerMap).sort((a,b)=>b.total-a.total);
+  const brokers=Object.values(bmap).sort((a,b)=>b.total-a.total);
 
   return(
     <div className="fa">
-      <div style={{display:'grid',gridTemplateColumns:'260px 1fr',gap:14}}>
-        <div style={{display:'flex',flexDirection:'column',gap:8}}>
-          <div style={{fontSize:11,color:'var(--text3)',marginBottom:4,fontFamily:'var(--mono)',textTransform:'uppercase',letterSpacing:'1px'}}>{brokers.length} ISO shops</div>
+      <div style={{display:'grid',gridTemplateColumns:'240px 1fr',gap:12}}>
+        <div>
+          <div style={{fontSize:10,color:'var(--text3)',fontFamily:'var(--mono)',textTransform:'uppercase',letterSpacing:'1px',marginBottom:8}}>{brokers.length} ISO shops</div>
           {brokers.map(b=>(
-            <div key={b.name} className="cd cds" style={{cursor:'pointer',borderColor:sel?.name===b.name?'var(--accent)':'var(--border)',transition:'border-color .15s'}} onClick={()=>setSel(b)}>
-              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
-                <div className="av" style={{fontSize:10}}>{b.name.slice(0,2).toUpperCase()}</div>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:13,fontWeight:500,color:'var(--text)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{b.name}</div>
-                </div>
+            <div key={b.name} className="cd cds" style={{cursor:'pointer',borderColor:sel?.name===b.name?'var(--accent)':'var(--border)',marginBottom:8,transition:'border-color .15s'}} onClick={()=>setSel(b)}>
+              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:5}}>
+                <div className="av" style={{fontSize:10,width:26,height:26}}>{b.name.slice(0,2).toUpperCase()}</div>
+                <div style={{fontSize:13,fontWeight:500,color:'var(--text)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{b.name}</div>
               </div>
               <div style={{display:'flex',gap:10,fontSize:11,fontFamily:'var(--mono)'}}>
                 <span style={{color:'var(--text3)'}}>Deals: <span style={{color:'var(--text)'}}>{b.total}</span></span>
                 <span style={{color:'var(--text3)'}}>Funded: <span style={{color:'var(--green)'}}>{b.funded}</span></span>
-                {b.active>0&&<span style={{color:'var(--text3)'}}>Active: <span style={{color:'var(--amber)'}}>{b.active}</span></span>}
               </div>
             </div>
           ))}
-          {!brokers.length&&<div className="em"><div className="emi">--</div><div className="emt">No brokers yet</div></div>}
+          {!brokers.length&&<div className="em"><div className="emt">No brokers yet</div></div>}
         </div>
-
         {sel?(
           <div className="fa">
             <div className="cd" style={{marginBottom:12}}>
-              <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:14}}>
-                <div className="av" style={{width:42,height:42,fontSize:14}}>{sel.name.slice(0,2).toUpperCase()}</div>
-                <div style={{fontSize:17,fontWeight:600,color:'var(--text)',fontFamily:'var(--serif)'}}>{sel.name}</div>
+              <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
+                <div className="av" style={{width:38,height:38,fontSize:13}}>{sel.name.slice(0,2).toUpperCase()}</div>
+                <div style={{fontSize:16,fontWeight:600,color:'var(--text)',fontFamily:'var(--serif)'}}>{sel.name}</div>
               </div>
-              <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10}}>
-                <div className="sc2" style={{padding:'10px 12px'}}><div className="sl2">Volume</div><div className="sv" style={{fontSize:16}}>{f$(sel.volume)}</div></div>
-                <div className="sc2" style={{padding:'10px 12px'}}><div className="sl2">Funded</div><div className="sv" style={{fontSize:16,color:'var(--green)'}}>{sel.funded}</div></div>
-                <div className="sc2" style={{padding:'10px 12px'}}><div className="sl2">In pipeline</div><div className="sv" style={{fontSize:16,color:'var(--amber)'}}>{sel.active}</div></div>
-                <div className="sc2" style={{padding:'10px 12px'}}><div className="sl2">Conversion</div><div className="sv" style={{fontSize:16}}>{sel.total>0?Math.round(sel.funded/sel.total*100):0}%</div></div>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8}}>
+                <div className="sc2" style={{padding:'8px 10px'}}><div className="sl2">Volume</div><div className="sv" style={{fontSize:14}}>{f$(sel.volume)}</div></div>
+                <div className="sc2" style={{padding:'8px 10px'}}><div className="sl2">Funded</div><div className="sv" style={{fontSize:14,color:'var(--green)'}}>{sel.funded}</div></div>
+                <div className="sc2" style={{padding:'8px 10px'}}><div className="sl2">Active</div><div className="sv" style={{fontSize:14,color:'var(--amber)'}}>{sel.active}</div></div>
+                <div className="sc2" style={{padding:'8px 10px'}}><div className="sl2">Conversion</div><div className="sv" style={{fontSize:14}}>{sel.total>0?Math.round(sel.funded/sel.total*100):0}%</div></div>
               </div>
             </div>
             <div className="cd" style={{padding:0}}>
-              <div style={{padding:'12px 14px',borderBottom:'1px solid var(--border)',fontSize:13,fontWeight:500,color:'var(--text)'}}>Deals from {sel.name}</div>
               <table className="pt2">
                 <thead><tr><th>ID</th><th>Business</th><th>Amount</th><th>Status</th><th>Risk</th></tr></thead>
-                <tbody>{deals.filter(d=>d.broker===sel.name).map(d=>(
-                  <tr key={d.id}>
-                    <td style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--text3)'}}>{d.id}</td>
-                    <td style={{color:'var(--text)',fontWeight:500}}>{d.business}</td>
-                    <td style={{fontFamily:'var(--mono)',fontSize:12,color:d.amount?'var(--teal)':'var(--text3)'}}>{d.amount?f$(d.amount):f$(d.requested)}</td>
-                    <td><span className={'badge '+sc(d.status)}>{SL[d.status]}</span></td>
-                    <td>{d.risk!=null?<span style={{fontSize:12,fontFamily:'var(--mono)',color:rc(d.risk)}}>{d.risk}</span>:'--'}</td>
-                  </tr>
-                ))}</tbody>
+                <tbody>
+                  {deals.filter(d=>d.broker===sel.name).map(d=>(
+                    <tr key={d.id}>
+                      <td style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--text3)'}}>{d.id}</td>
+                      <td style={{color:'var(--text)',fontWeight:500}}>{d.business}</td>
+                      <td style={{fontFamily:'var(--mono)',fontSize:12,color:d.amount?'var(--teal)':'var(--text3)'}}>{d.amount?f$(d.amount):f$(d.requested)}</td>
+                      <td><span className={'badge '+badgeClass(d.status)}>{STATUS[d.status]}</span></td>
+                      <td>{d.risk!=null?<span style={{fontSize:12,fontFamily:'var(--mono)',color:rc(d.risk)}}>{d.risk}</span>:'--'}</td>
+                    </tr>
+                  ))}
+                </tbody>
               </table>
             </div>
           </div>
         ):(
-          <div className="em" style={{marginTop:60}}><div className="emi">--</div><div className="emt">Select a broker to view their deals</div></div>
+          <div className="em" style={{marginTop:60}}><div className="emt">Select a broker to view their deals</div></div>
         )}
       </div>
     </div>
   );
 }
 
-function ContractsPage({deals}){
+function Contracts({deals}){
   const cd=deals.filter(d=>['contracts','bankverify','funded'].includes(d.status));
   return(
     <div className="fa">
-      <div style={{marginBottom:16,fontSize:13,color:'var(--text3)'}}>DocuSign integration - contracts auto-generated on offer acceptance</div>
+      <div style={{marginBottom:14,fontSize:13,color:'var(--text3)'}}>DocuSign integration - contracts auto-generated on offer acceptance</div>
       {cd.map(d=>(
-        <div key={d.id} className="cd cds" style={{display:'flex',alignItems:'center',gap:14,marginBottom:8}}>
+        <div key={d.id} className="cd cds" style={{display:'flex',alignItems:'center',gap:12,marginBottom:8}}>
           <div style={{flex:1}}>
             <div style={{fontSize:13,fontWeight:500,color:'var(--text)'}}>{d.business}</div>
             <div style={{fontSize:11,color:'var(--text3)',fontFamily:'var(--mono)'}}>{d.id} - {d.broker}</div>
           </div>
           <div style={{textAlign:'right'}}>
             <div style={{fontSize:13,fontFamily:'var(--mono)',color:'var(--teal)'}}>{f$(d.amount)}</div>
-            <div style={{fontSize:10,color:'var(--text3)',fontFamily:'var(--mono)'}}>{d.factor}x buy / 1.499x sell</div>
+            <div style={{fontSize:10,color:'var(--text3)',fontFamily:'var(--mono)'}}>{pct(d.factor)} buy / 1.499x sell</div>
           </div>
-          <span className={'badge '+sc(d.status)}>{SL[d.status]}</span>
+          <span className={'badge '+badgeClass(d.status)}>{STATUS[d.status]}</span>
           {d.status==='contracts'?<button className="btn bp bs">Send DocuSign</button>:<button className="btn bg bs">View</button>}
         </div>
       ))}
-      {!cd.length&&<div className="em"><div className="emi">--</div><div className="emt">No contracts yet</div></div>}
+      {!cd.length&&<div className="em"><div className="emt">No contracts yet</div></div>}
     </div>
   );
 }
@@ -1044,34 +1120,35 @@ function BrokerPortal({deals}){
   const mf=md.filter(d=>d.status==='funded');
   return(
     <div className="fa">
-      <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:16,padding:'12px 16px',background:'var(--bg3)',borderRadius:'var(--radius-lg)',border:'1px solid var(--border)'}}>
-        <div className="av">{(br||'??').slice(0,2).toUpperCase()}</div>
-        <div><div style={{fontSize:13,fontWeight:500,color:'var(--text)'}}>{br||'Select broker'}</div><div style={{fontSize:11,color:'var(--text3)'}}>Broker portal view</div></div>
+      <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14,padding:'10px 14px',background:'var(--bg3)',borderRadius:'var(--radius-lg)',border:'1px solid var(--border)'}}>
+        <div className="av" style={{fontSize:10}}>{(br||'??').slice(0,2).toUpperCase()}</div>
+        <div style={{fontSize:13,fontWeight:500,color:'var(--text)'}}>{br||'Select broker'}</div>
         <div style={{marginLeft:'auto'}}>
-          <select className="fi" style={{width:200}} value={br} onChange={e=>setBr(e.target.value)}>
+          <select className="fi" style={{width:180}} value={br} onChange={e=>setBr(e.target.value)}>
             <option value="">Select broker...</option>
             {brokers.map((b,i)=><option key={i} value={b}>{b}</option>)}
           </select>
         </div>
       </div>
       <div className="sg">
-        <div className="sc2"><div className="sl2">Active deals</div><div className="sv">{md.filter(d=>!['funded','declined'].includes(d.status)).length}</div></div>
+        <div className="sc2"><div className="sl2">Active</div><div className="sv">{md.filter(d=>!['funded','declined'].includes(d.status)).length}</div></div>
         <div className="sc2"><div className="sl2">Funded</div><div className="sv" style={{color:'var(--green)'}}>{mf.length}</div></div>
-        <div className="sc2"><div className="sl2">Total volume</div><div className="sv" style={{fontSize:16}}>{f$(mf.reduce((s,d)=>s+(d.amount||0),0))}</div></div>
+        <div className="sc2"><div className="sl2">Volume</div><div className="sv" style={{fontSize:14}}>{f$(mf.reduce((s,d)=>s+(d.amount||0),0))}</div></div>
         <div className="sc2"><div className="sl2">Conversion</div><div className="sv">{md.length>0?Math.round(mf.length/md.length*100):0}%</div></div>
       </div>
       <div className="cd" style={{padding:0}}>
         <table className="pt2">
-          <thead><tr><th>Business</th><th>Requested</th><th>Offer</th><th>Status</th><th>Action</th></tr></thead>
-          <tbody>{md.map(d=>(
-            <tr key={d.id}>
-              <td><div style={{fontWeight:500,color:'var(--text)'}}>{d.business}</div><div style={{fontSize:11,color:'var(--text3)',fontFamily:'var(--mono)'}}>{d.id}</div></td>
-              <td style={{fontFamily:'var(--mono)',fontSize:12}}>{f$(d.requested)}</td>
-              <td style={{fontFamily:'var(--mono)',fontSize:12,color:d.amount?'var(--teal)':'var(--text3)'}}>{d.amount?f$(d.amount):'Pending'}</td>
-              <td><span className={'badge '+sc(d.status)}>{SL[d.status]}</span></td>
-              <td>{d.status==='offered'?<button className="btn bp bs">Present offer</button>:d.status==='funded'?<button className="btn bg bs">Statement</button>:'--'}</td>
-            </tr>
-          ))}</tbody>
+          <thead><tr><th>Business</th><th>Requested</th><th>Offer</th><th>Status</th></tr></thead>
+          <tbody>
+            {md.map(d=>(
+              <tr key={d.id}>
+                <td><div style={{fontWeight:500,color:'var(--text)'}}>{d.business}</div><div style={{fontSize:10,color:'var(--text3)',fontFamily:'var(--mono)'}}>{d.id}</div></td>
+                <td style={{fontFamily:'var(--mono)',fontSize:12}}>{f$(d.requested)}</td>
+                <td style={{fontFamily:'var(--mono)',fontSize:12,color:d.amount?'var(--teal)':'var(--text3)'}}>{d.amount?f$(d.amount):'Pending'}</td>
+                <td><span className={'badge '+badgeClass(d.status)}>{STATUS[d.status]}</span></td>
+              </tr>
+            ))}
+          </tbody>
         </table>
       </div>
     </div>
@@ -1084,34 +1161,34 @@ function MerchantPortal({deals}){
   const po=sel&&sel.balance?Math.round(sel.balance*1.02):0;
   return(
     <div className="fa">
-      <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:16,padding:'12px 16px',background:'var(--bg3)',borderRadius:'var(--radius-lg)',border:'1px solid var(--border)'}}>
-        <div className="av" style={{background:'linear-gradient(135deg,var(--teal),var(--accent2))'}}>M</div>
-        <div><div style={{fontSize:13,fontWeight:500,color:'var(--text)'}}>Merchant Portal</div><div style={{fontSize:11,color:'var(--text3)'}}>Balance - letters - performance</div></div>
+      <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14,padding:'10px 14px',background:'var(--bg3)',borderRadius:'var(--radius-lg)',border:'1px solid var(--border)'}}>
+        <div className="av" style={{background:'linear-gradient(135deg,var(--teal),#6366f1)'}}>M</div>
+        <div style={{fontSize:13,fontWeight:500,color:'var(--text)'}}>Merchant Portal</div>
         <div style={{marginLeft:'auto'}}>
-          <select className="fi" style={{width:220}} value={sel?.id||''} onChange={e=>setSel(fd.find(d=>d.id===e.target.value))}>
-            {fd.map(d=><option key={d.id} value={d.id}>{d.business} - {d.id}</option>)}
+          <select className="fi" style={{width:200}} value={sel?.id||''} onChange={e=>setSel(fd.find(d=>d.id===e.target.value))}>
+            {fd.map(d=><option key={d.id} value={d.id}>{d.business}</option>)}
           </select>
         </div>
       </div>
       {sel?(
         <div className="fa">
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12,marginBottom:16}}>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:14}}>
             <div className="oc">
               <div className="ol">Outstanding balance</div>
               <div className="oa" style={{color:'var(--amber)'}}>{f$(sel.balance)}</div>
-              <div style={{marginTop:6,fontSize:11,color:'var(--text3)'}}>of {f$(sel.amount)} funded</div>
-              <div style={{marginTop:8,height:4,background:'#ffffff20',borderRadius:2}}><div style={{height:'100%',borderRadius:2,background:'var(--teal)',width:(sel.amount&&sel.balance?Math.round((1-sel.balance/sel.amount)*100):0)+'%'}}/></div>
+              <div style={{marginTop:5,fontSize:11,color:'var(--text3)'}}>of {f$(sel.amount)} funded</div>
+              <div style={{marginTop:8,height:3,background:'#ffffff20',borderRadius:2}}><div style={{height:'100%',borderRadius:2,background:'var(--teal)',width:(sel.amount&&sel.balance?Math.round((1-sel.balance/sel.amount)*100):0)+'%'}}/></div>
               <div style={{marginTop:3,fontSize:10,color:'var(--text3)',fontFamily:'var(--mono)'}}>{sel.amount&&sel.balance?Math.round((1-sel.balance/sel.amount)*100):0}% paid</div>
             </div>
             <div className="cd">
               <div className="dl">Payoff amount</div>
-              <div style={{fontSize:22,fontWeight:600,fontFamily:'var(--mono)',color:'var(--text)',margin:'6px 0'}}>{f$(po)}</div>
+              <div style={{fontSize:20,fontWeight:600,fontFamily:'var(--mono)',color:'var(--text)',margin:'5px 0'}}>{f$(po)}</div>
               <div style={{fontSize:11,color:'var(--text3)',marginBottom:10}}>includes 2% early payoff fee</div>
               <button className="btn bg bs" style={{width:'100%'}}>Request payoff letter</button>
             </div>
             <div className="cd">
-              <div className="dl">Documents</div>
-              <div style={{display:'flex',flexDirection:'column',gap:6,marginTop:8}}>
+              <div className="dl" style={{marginBottom:8}}>Documents</div>
+              <div style={{display:'flex',flexDirection:'column',gap:6}}>
                 <button className="btn bg bs">Balance letter</button>
                 <button className="btn bg bs">Payment history</button>
                 <button className="btn bg bs">Contract copy</button>
@@ -1119,60 +1196,58 @@ function MerchantPortal({deals}){
             </div>
           </div>
           {sel.balance&&sel.amount&&sel.balance/sel.amount<=0.5&&(
-            <div style={{padding:'12px 16px',background:'#1a2a1a',border:'1px solid #10b98140',borderRadius:'var(--radius-lg)',display:'flex',alignItems:'center',gap:12}}>
-              <div style={{flex:1}}><div style={{fontSize:13,fontWeight:500,color:'var(--green)',marginBottom:2}}>Eligible for renewal!</div><div style={{fontSize:12,color:'var(--text3)'}}>You have paid over 50% - contact your broker to discuss renewal options</div></div>
+            <div style={{padding:'10px 14px',background:'#1a2a1a',border:'1px solid #10b98140',borderRadius:'var(--radius-lg)',display:'flex',alignItems:'center',gap:10}}>
+              <div style={{flex:1}}><div style={{fontSize:13,fontWeight:500,color:'var(--green)'}}>Eligible for renewal!</div><div style={{fontSize:12,color:'var(--text3)'}}>Over 50% paid - contact your broker to discuss renewal</div></div>
               <button className="btn bsu bs">Request renewal</button>
             </div>
           )}
         </div>
       ):(
-        <div className="em"><div className="emi">--</div><div className="emt">No funded deals yet</div></div>
+        <div className="em"><div className="emt">No funded deals yet</div></div>
       )}
     </div>
   );
 }
 
-function MktPage({type}){
+function Mkt({type}){
   return(
     <div className="fa">
-      <div style={{marginBottom:16,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-        <div style={{fontSize:13,color:'var(--text3)'}}>{type==='broker'?'Email and SMS campaigns for your ISO network':'Automated communications for funded merchants'}</div>
+      <div style={{marginBottom:14,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <div style={{fontSize:13,color:'var(--text3)'}}>{type==='iso'?'Email and SMS campaigns for your ISO network':'Automated communications for funded merchants'}</div>
         <button className="btn bp bs">+ New campaign</button>
       </div>
       <div className="cd">
-        <div style={{textAlign:'center',padding:'30px 0'}}>
-          <div style={{fontSize:13,color:'var(--text)',marginBottom:8,fontWeight:500}}>Campaign builder coming soon</div>
-          <div style={{fontSize:12,color:'var(--text3)'}}>Connect SendGrid or Mailchimp to start sending automated campaigns to your {type==='broker'?'ISO partners':'merchant clients'}</div>
+        <div style={{textAlign:'center',padding:'28px 0'}}>
+          <div style={{fontSize:13,fontWeight:500,color:'var(--text)',marginBottom:6}}>Campaign builder coming soon</div>
+          <div style={{fontSize:12,color:'var(--text3)'}}>Connect SendGrid or Mailchimp to start sending automated campaigns</div>
         </div>
       </div>
     </div>
   );
 }
 
-function SettingsPage(){
-  const settings=[
-    {title:'Underwriting guidelines',desc:'Risk score thresholds, position limits, revenue minimums, factor rates'},
-    {title:'AI scrubber settings',desc:'Claude API key, pricing rules, industry restrictions'},
-    {title:'Gmail integration',desc:'Inbox settings, deal detection keywords, OAuth credentials'},
-    {title:'Google Sheets sync',desc:'Sheet IDs, tab names, sync frequency'},
-    {title:'DocuSign contracts',desc:'Template ID, signing order, webhook URL'},
-    {title:'NY Courts API',desc:'Credentials and search configuration'},
-    {title:'DataMerch API',desc:'API key and match threshold settings'},
-    {title:'Notifications',desc:'Email alerts on deal status changes'},
-    {title:'Security',desc:'Password protection, user access, session settings'},
+function Settings(){
+  const items=[
+    {t:'Underwriting guidelines',d:'Risk thresholds, position limits, revenue minimums, factor rates'},
+    {t:'AI scrubber',d:'Claude API key, pricing rules, industry restrictions'},
+    {t:'Gmail integration',d:'Inbox settings, deal detection, OAuth credentials'},
+    {t:'Google Sheets sync',d:'Sheet IDs, tab names, sync frequency'},
+    {t:'DocuSign contracts',d:'Template ID, signing order, webhook URL'},
+    {t:'NY Courts API',d:'Credentials and search configuration'},
+    {t:'DataMerch API',d:'API key and match threshold'},
+    {t:'Notifications',d:'Email alerts on deal status changes'},
+    {t:'Security',d:'Password protection, user access'},
   ];
   return(
     <div className="fa">
-      <div style={{maxWidth:560,display:'flex',flexDirection:'column',gap:10}}>
-        {settings.map((s,i)=>(
-          <div key={i} className="cd cds" style={{display:'flex',alignItems:'center',gap:12,cursor:'pointer',transition:'border-color .15s'}}
-            onMouseEnter={e=>e.currentTarget.style.borderColor='var(--border3)'}
-            onMouseLeave={e=>e.currentTarget.style.borderColor='var(--border)'}>
+      <div style={{maxWidth:540,display:'flex',flexDirection:'column',gap:8}}>
+        {items.map((s,i)=>(
+          <div key={i} className="cd cds" style={{display:'flex',alignItems:'center',gap:10,cursor:'pointer',transition:'border-color .15s'}} onMouseEnter={e=>e.currentTarget.style.borderColor='var(--border3)'} onMouseLeave={e=>e.currentTarget.style.borderColor='var(--border)'}>
             <div style={{flex:1}}>
-              <div style={{fontSize:13,fontWeight:500,color:'var(--text)'}}>{s.title}</div>
-              <div style={{fontSize:11,color:'var(--text3)',marginTop:2}}>{s.desc}</div>
+              <div style={{fontSize:13,fontWeight:500,color:'var(--text)'}}>{s.t}</div>
+              <div style={{fontSize:11,color:'var(--text3)',marginTop:1}}>{s.d}</div>
             </div>
-            <span style={{color:'var(--text3)',fontSize:16}}>›</span>
+            <span style={{color:'var(--text3)'}}>›</span>
           </div>
         ))}
       </div>
