@@ -900,7 +900,7 @@ function DealDetail({deal,onClose,onUpdate,onRefresh,showToast}){
           {deal.status==='bankverify'&&<button className="btn bsu bs" onClick={fundDeal}>Mark as funded</button>}
           {!['funded','declined'].includes(deal.status)&&NEXT_STATUS[deal.status]&&(
             <button className="btn bg bs" onClick={advanceDeal} disabled={advancing}>
-              {advancing?'...':`Advance to ${STATUS[NEXT_STATUS[deal.status]]}`}
+              {advancing?'...':'Advance to '+STATUS[NEXT_STATUS[deal.status]]}
             </button>
           )}
           {!['funded','declined'].includes(deal.status)&&(
