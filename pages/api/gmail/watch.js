@@ -5,15 +5,8 @@ export default async function handler(req, res) {
   try {
     const { google } = require('googleapis')
     const { createClient } = require('@supabase/supabase-js')
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-    )
-    const oauth2Client = new google.auth.OAuth2(
-      process.env.GMAIL_CLIENT_ID,
-      process.env.GMAIL_CLIENT_SECRET,
-      'https://developers.google.com/oauthplayground'
-    )
+    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+    const oauth2Client = new google.auth.OAuth2(process.env.GMAIL_CLIENT_ID, process.env.GMAIL_CLIENT_SECRET, 'https://developers.google.com/oauthplayground')
     oauth2Client.setCredentials({ refresh_token: process.env.GMAIL_REFRESH_TOKEN })
     const gmail = google.gmail({ version: 'v1', auth: oauth2Client })
     const query = 'is:unread in:inbox to:' + process.env.GMAIL_USER_EMAIL + ' newer_than:30d -category:promotions -category:social -category:updates'
@@ -25,6 +18,7 @@ export default async function handler(req, res) {
     const skipSubjects = ['unsubscribe', 'newsletter', 'password reset', 'invoice for', 'receipt for', 'webinar', 'out of office', 'auto-reply', 'delivery failed']
     const dealKeywords = ['fw:', 'fwd:', 'new deal', 'new submission', 'new application', 'submission', 'application', 'merchant', 'llc', 'inc', 'corp', 'co.', 'dba', 'restaurant', 'construction', 'trucking', 'medical', 'dental', 'salon', 'auto', 'repair', 'catering', 'services', 'group', 'associates', 'enterprises', 'solutions', 'management', 'grill', 'cafe', 'hotel', 'gym', 'fitness', 'plumbing', 'electric', 'hvac', 'roofing', 'landscaping']
     const appUrl = process.env.NEXTAUTH_URL || 'https://flowcap-mca.vercel.app'
+
     for (const msg of messages) {
       try {
         const { data: existing } = await supabase.from('gmail_sync_log').select('id').eq('gmail_message_id', msg.id).single()
@@ -66,11 +60,33 @@ export default async function handler(req, res) {
           notes: 'From: ' + fromName + ' <' + fromEmail + '>\nSubject: ' + subject
         }).select().single()
         if (dealError) throw dealError
+
         await supabase.from('gmail_sync_log').insert({ gmail_message_id: msg.id, gmail_thread_id: message.threadId, subject, from_email: fromEmail, deal_id: deal.id, processed: true })
         await gmail.users.messages.modify({ userId: 'me', id: msg.id, requestBody: { removeLabelIds: ['UNREAD'] } })
-        fetch(appUrl + '/api/scrubber/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dealId: deal.id }) }).catch(e => console.error('Scrub failed:', e.message))
-        saveAttachments(gmail, message.id, deal.id, supabase, appUrl).catch(e => console.error('Attachment save failed:', e.message))
-        results.push({ messageId: msg.id, dealNumber, businessName, from: fromEmail, broker: broker?.name || 'Unknown', status: 'created' })
+
+        // Step 1: Save attachments FIRST (synchronous - wait for it)
+        const { saved, hasBankStatements } = await saveAttachments(gmail, message.id, deal.id, supabase)
+
+        // Step 2: Parse bank statements if found (synchronous - wait for it)
+        if (hasBankStatements && saved > 0) {
+          try {
+            await fetch(appUrl + '/api/documents/parse', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ dealId: deal.id })
+            })
+          } catch (e) { console.error('Parse failed:', e.message) }
+        }
+
+        // Step 3: Run scrubber (fire and forget - don't block response)
+        fetch(appUrl + '/api/scrubber/run', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dealId: deal.id })
+        }).catch(e => console.error('Scrub failed:', e.message))
+
+        results.push({ messageId: msg.id, dealNumber, businessName, from: fromEmail, broker: broker?.name || 'Unknown', attachmentsSaved: saved, hasBankStatements, status: 'created' })
+
       } catch (err) {
         console.error('Error processing', msg.id, ':', err.message)
         results.push({ messageId: msg.id, status: 'error', error: err.message })
@@ -84,13 +100,14 @@ export default async function handler(req, res) {
   }
 }
 
-async function saveAttachments(gmail, messageId, dealId, supabase, appUrl) {
+async function saveAttachments(gmail, messageId, dealId, supabase) {
+  let saved = 0
+  let hasBankStatements = false
   try {
     const { data: fullMsg } = await gmail.users.messages.get({ userId: 'me', id: messageId, format: 'full' })
     const atts = []
     collectAtts(fullMsg.payload, atts)
-    let saved = 0
-    let hasBankStatements = false
+    console.log('Found', atts.length, 'attachments for deal', dealId)
     for (const att of atts) {
       try {
         let data = att.body?.data
@@ -98,23 +115,24 @@ async function saveAttachments(gmail, messageId, dealId, supabase, appUrl) {
           const { data: fetched } = await gmail.users.messages.attachments.get({ userId: 'me', messageId, id: att.body.attachmentId })
           data = fetched?.data
         }
-        if (!data) continue
+        if (!data) { console.log('No data for attachment:', att.filename); continue }
         const buf = Buffer.from(data, 'base64')
         const filename = att.filename || 'file-' + Date.now()
         const mime = att.mimeType || 'application/octet-stream'
         const path = 'deals/' + dealId + '/' + filename
         const docType = guessType(filename, mime)
         if (docType === 'bank_statement') hasBankStatements = true
-        const { error } = await supabase.storage.from('deal-documents').upload(path, buf, { contentType: mime, upsert: true })
-        if (error) continue
+        console.log('Uploading', filename, 'as', docType, 'to', path)
+        const { error: uploadErr } = await supabase.storage.from('deal-documents').upload(path, buf, { contentType: mime, upsert: true })
+        if (uploadErr) { console.error('Upload error for', filename, ':', uploadErr.message); continue }
         await supabase.from('documents').insert({ deal_id: dealId, name: filename, doc_type: docType, storage_path: path, mime_type: mime, size_bytes: buf.length, source: 'email' })
         saved++
-      } catch (e) { console.error('Att error:', e.message) }
-    }
-    if (hasBankStatements && saved > 0) {
-      await fetch(appUrl + '/api/documents/parse', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dealId }) }).catch(e => console.error('Parse trigger failed:', e.message))
+        console.log('Saved attachment:', filename)
+      } catch (e) { console.error('Att error:', att.filename, e.message) }
     }
   } catch (err) { console.error('saveAttachments error:', err.message) }
+  console.log('Total saved:', saved, 'hasBankStatements:', hasBankStatements)
+  return { saved, hasBankStatements }
 }
 
 function collectAtts(payload, out) {
