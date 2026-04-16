@@ -24,7 +24,7 @@ export default async function handler(req, res) {
       .select('id, deal_number, business_name, gmail_thread_id')
       .not('gmail_thread_id', 'is', null)
       .eq('source', 'email')
-      .limit(10)
+      .limit(3)
 
     if (!deals || deals.length === 0) {
       return res.json({ message: 'No deals to process', count: 0 })
@@ -101,22 +101,10 @@ export default async function handler(req, res) {
           }
         }
 
-        // Parse and re-scrub if bank statements found
+        // Fire parse and scrub in background
         if (hasBankStatements && totalSaved > 0) {
-          try {
-            await fetch(appUrl + '/api/documents/parse', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ dealId: deal.id })
-            })
-          } catch (e) { console.error('Parse failed:', e.message) }
-
-          // Re-scrub with real data
-          fetch(appUrl + '/api/scrubber/run', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ dealId: deal.id })
-          }).catch(e => console.error('Scrub failed:', e.message))
+          fetch(appUrl + '/api/documents/parse', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dealId: deal.id }) }).catch(()=>{})
+          fetch(appUrl + '/api/scrubber/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dealId: deal.id }) }).catch(()=>{})
         }
 
         results.push({
