@@ -10,8 +10,12 @@
       "schedule": "*/15 * * * *"
     },
     {
-      "path": "/api/sheets/sync?pull=1",
-      "schedule": "0 * * * *"
+      "path": "/api/gmail/refetch-attachments",
+      "schedule": "*/2 * * * *"
+    },
+    {
+      "path": "/api/scrubber/scrub-all",
+      "schedule": "*/3 * * * *"
     }
   ]
 }
