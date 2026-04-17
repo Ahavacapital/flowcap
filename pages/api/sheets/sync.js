@@ -13,16 +13,16 @@ export default async function handler(req, res) {
     const results = {}
 
     const write = async (tab, values) => {
-      const range = tab + '!A1'
-      await sheets.spreadsheets.values.clear({ spreadsheetId: sid, range: tab + '!A1:Z5000' })
+      const safe = tab.includes(' ') ? "'" + tab + "'" : tab
+      await sheets.spreadsheets.values.clear({ spreadsheetId: sid, range: safe + '!A1:Z5000' })
       await sheets.spreadsheets.values.update({
-        spreadsheetId: sid, range,
+        spreadsheetId: sid,
+        range: safe + '!A1',
         valueInputOption: 'USER_ENTERED',
         requestBody: { values }
       })
     }
 
-    // Fetch all deals
     const { data: allDeals } = await supabase
       .from('deals')
       .select('*, broker:brokers(name), deal_notes(category,body,author,created_at)')
@@ -30,7 +30,7 @@ export default async function handler(req, res) {
       .limit(2000)
     const deals = allDeals || []
 
-    // ─── SUBMISSIONS ──────────────────────────────────────────
+    // SUBMISSIONS
     try {
       const headers = [
         'Deal #','Business Name','Contact','Email','Broker / ISO',
@@ -59,7 +59,7 @@ export default async function handler(req, res) {
       results.submissions = { status: 'error', error: err.message }
     }
 
-    // ─── APPROVED DEALS ───────────────────────────────────────
+    // APPROVED DEALS
     try {
       const approved = deals.filter(d => ['offered','docs','contracts','bankverify'].includes(d.status))
       const headers = [
@@ -89,7 +89,7 @@ export default async function handler(req, res) {
       results.approvedDeals = { status: 'error', error: err.message }
     }
 
-    // ─── FUNDED DEALS ─────────────────────────────────────────
+    // FUNDED DEALS
     try {
       const funded = deals.filter(d => d.status === 'funded')
       const headers = [
@@ -121,7 +121,7 @@ export default async function handler(req, res) {
       results.fundedDeals = { status: 'error', error: err.message }
     }
 
-    // ─── ISO PERFORMANCE ──────────────────────────────────────
+    // ISO PERFORMANCE
     try {
       const { data: brokers } = await supabase.from('brokers').select('*').order('name')
       const stats = {}
