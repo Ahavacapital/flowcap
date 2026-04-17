@@ -115,7 +115,7 @@ export default async function handler(req, res) {
           renewal
         ]
       })
-      await write('FUNDEDDEALS', [headers, ...rows])
+      await write('FUNDED', [headers, ...rows])
       results.fundedDeals = { rows: rows.length, status: 'success' }
     } catch (err) {
       results.fundedDeals = { status: 'error', error: err.message }
