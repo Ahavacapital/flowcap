@@ -24,7 +24,7 @@ export default async function handler(req, res) {
       .select('id, deal_number, business_name, gmail_thread_id')
       .not('gmail_thread_id', 'is', null)
       .eq('source', 'email')
-      .limit(3)
+      .limit(1)
 
     if (!deals || deals.length === 0) {
       return res.json({ message: 'No deals to process', count: 0 })
