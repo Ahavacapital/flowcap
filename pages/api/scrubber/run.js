@@ -6,119 +6,121 @@ export default async function handler(req, res) {
 
     const { createClient } = require('@supabase/supabase-js')
     const Anthropic = require('@anthropic-ai/sdk')
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-    )
+    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
     const anthropic = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY })
+    const appUrl = process.env.NEXTAUTH_URL || 'https://flowcap-mca.vercel.app'
 
-    const { data: deal } = await supabase
-      .from('deals')
-      .select('*, deal_notes(*)')
-      .eq('id', dealId)
-      .single()
-
+    let { data: deal } = await supabase.from('deals').select('*, deal_notes(*)').eq('id', dealId).single()
     if (!deal) return res.status(404).json({ error: 'Deal not found' })
 
     await supabase.from('deals').update({ status: 'scrubbing' }).eq('id', dealId)
 
-    // Check if we have real bank statement data from document parser
-    const parserNote = (deal.deal_notes || []).find(n =>
-      n.author === 'Document Parser' && n.body?.includes('Bank statement analysis')
-    )
+    // STEP 1: Run parser first if we have docs but no financial data
+    const hasFinancialData = !!(deal.monthly_revenue || deal.avg_daily_balance)
+    if (!hasFinancialData) {
+      const { count: docCount } = await supabase
+        .from('documents')
+        .select('*', { count: 'exact', head: true })
+        .eq('deal_id', dealId)
+        .eq('doc_type', 'bank_statement')
+
+      if (docCount > 0) {
+        try {
+          await fetch(appUrl + '/api/documents/parse', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dealId })
+          })
+          // Reload deal with fresh data from parser
+          const { data: freshDeal } = await supabase.from('deals').select('*, deal_notes(*)').eq('id', dealId).single()
+          if (freshDeal) deal = freshDeal
+        } catch (e) { console.error('Parser failed:', e.message) }
+      }
+    }
+
+    // STEP 2: Check if we now have real data
+    const parserNote = (deal.deal_notes || []).find(n => n.author === 'Document Parser' && n.body?.includes('Bank statement analysis'))
     const hasRealData = !!(parserNote || deal.monthly_revenue || deal.avg_daily_balance)
 
-    // If no bank data at all - send to manual underwriting
+    // No bank data - send to manual underwriting
     if (!hasRealData) {
       await supabase.from('deals').update({ status: 'underwriting' }).eq('id', dealId)
       await supabase.from('deal_notes').insert({
-        deal_id: dealId,
-        author: 'AI Scrubber',
-        category: 'system',
+        deal_id: dealId, author: 'AI Scrubber', category: 'system',
         body: 'No bank statements found - sent to manual underwriting. Please review attachments and enter financial data manually.'
       })
-      return res.json({
-        dealId, dealNumber: deal.deal_number,
-        approved: null, decision: 'manual_review',
-        reason: 'No bank statements available - manual underwriting required',
-        status: 'underwriting'
-      })
+      return res.json({ dealId, dealNumber: deal.deal_number, approved: null, decision: 'manual_review', status: 'underwriting' })
     }
 
+    // STEP 3: Build data string for Claude
     const dataStr = [
       'Business: ' + deal.business_name,
       'Amount Requested: ' + (deal.amount_requested ? '$' + Number(deal.amount_requested).toLocaleString() : 'Unknown'),
-      'Monthly Revenue (from statements): ' + (deal.monthly_revenue ? '$' + Number(deal.monthly_revenue).toLocaleString() : 'Unknown'),
+      'Monthly Revenue: ' + (deal.monthly_revenue ? '$' + Number(deal.monthly_revenue).toLocaleString() : 'Unknown'),
       'Avg Daily Balance: ' + (deal.avg_daily_balance ? '$' + Number(deal.avg_daily_balance).toLocaleString() : 'Unknown'),
-      'Known Positions: ' + (deal.positions || 0),
+      'Positions: ' + (deal.positions || 0),
       'NY Courts: ' + (deal.ny_court_result || 'unknown'),
       'DataMerch: ' + (deal.datamerch_result || 'unknown'),
-      parserNote ? '\nBANK STATEMENT ANALYSIS:\n' + parserNote.body : '',
-      deal.notes ? '\nSUBMISSION NOTES:\n' + deal.notes.slice(0, 500) : ''
+      parserNote ? '\nBANK STATEMENT DATA:\n' + parserNote.body : '',
+      deal.notes ? '\nNOTES:\n' + deal.notes.slice(0, 500) : ''
     ].filter(Boolean).join('\n')
 
-    const prompt = `You are an experienced MCA underwriter. Analyze this deal carefully.
+    const prompt = `You are an MCA underwriter. Analyze this deal and return JSON only.
 
-UNDERWRITING GUIDELINES:
-- We fund SECOND POSITION AND UP ONLY — auto decline first positions
-- Min avg monthly revenue: $35,000 (3 month average)
+GUIDELINES:
+- Second position and up ONLY - auto decline first positions
+- Min avg monthly revenue: $35,000
 - Min avg daily balance: $1,000
-- Max negative days: 7 per month
+- Max negative days: 7/month
 - Min 6 months in business
 - Max cash withhold: 40% of gross monthly revenue
-- No adult entertainment industries
+- No adult entertainment
 - Trucking: max 60 day term
-- Construction: max 90 day term  
+- Construction: max 90 day term
 - All others: max 120 day term
-- Sell rate: ALWAYS 1.499x fixed
-- Buy rates: risk 80-100 = 1.20-1.22x | risk 65-79 = 1.29-1.35x | risk 50-64 = 1.38-1.45x | below 50 = decline
+- Sell rate ALWAYS 1.499x
+- Buy rates: risk 80-100 = 1.20-1.22x | 65-79 = 1.29-1.35x | 50-64 = 1.38-1.45x | below 50 = decline
 
-POSITION DETECTION - VERY IMPORTANT:
-Look for recurring ACH debits in the bank statements that suggest existing MCA positions:
-- Daily debits of similar amounts (within 10-15% variance) = likely MCA position
-- Weekly debits of similar amounts = likely MCA position  
-- Multiple recurring debit companies = multiple positions
-- If you see 3+ suspicious recurring debits, flag for manual review
-- If positions are UNCLEAR from the data, set needs_manual_review to true
+POSITION DETECTION:
+- Daily debits of similar amounts = likely MCA position
+- Weekly debits of similar amounts = likely MCA position
+- If positions unclear with low confidence = manual_review
 
 DECISION RULES:
-- If data is insufficient to make accurate decision = set decision to "manual_review"
-- If position count is unclear or suspicious = set decision to "manual_review"
-- Only set "approve" or "decline" if you have enough data to be confident
-- When in doubt = manual_review
+- Only approve or decline if confident
+- If uncertain about positions or data = manual_review
 
 ADVANCE AMOUNT:
-- Max daily ACH = monthly revenue x 40% / 21 business days
-- Approved amount = max daily ACH x business days in term
+- Max daily payment = monthly revenue x 40% / 21 business days
+- Approved amount = max daily payment x term days
 - Round to nearest $1,000
 
 DEAL DATA:
 ${dataStr}
 
-Return ONLY valid JSON no markdown:
+Return ONLY valid JSON:
 {
-  "risk_score": <0-100 or null if insufficient data>,
-  "decision": <"approve", "decline", or "manual_review">,
+  "risk_score": <0-100>,
+  "decision": <"approve","decline","manual_review">,
   "decline_reason": <string or null>,
-  "manual_review_reason": <string or null - explain what needs manual review>,
-  "industry": <detected industry>,
-  "is_prohibited": <true or false>,
-  "position": <"first", "second", "third", "fourth_plus", "unknown", or "unclear">,
-  "detected_mca_payments": [<list of detected recurring ACH debits that look like MCA payments, with company name and amount>],
-  "estimated_positions": <number - your best estimate>,
-  "positions_confidence": <"high", "medium", "low">,
+  "manual_review_reason": <string or null>,
+  "industry": <string>,
+  "is_prohibited": <bool>,
+  "position": <"first","second","third","fourth_plus","unknown","unclear">,
+  "detected_mca_payments": [{"company_name":"","amount":0,"frequency":"daily/weekly"}],
+  "estimated_positions": <number>,
+  "positions_confidence": <"high","medium","low">,
   "avg_monthly_revenue": <number or null>,
   "avg_daily_balance": <number or null>,
   "negative_days_per_month": <number or null>,
-  "months_in_business": <number or null>,
   "buy_rate": <number or null>,
   "term_days": <number or null>,
   "approved_amount": <number or null>,
   "merchant_payback": <number or null>,
   "our_profit": <number or null>,
-  "flags": [<risk flags>],
-  "conditions": [<approval conditions>],
-  "summary": "<clear 2 sentence summary>"
+  "flags": [],
+  "conditions": [],
+  "summary": "<2 sentence summary>"
 }`
 
     const response = await anthropic.messages.create({
@@ -130,36 +132,21 @@ Return ONLY valid JSON no markdown:
     const text = response.content[0].text.trim().replace(/```json\n?|\n?```/g, '').trim()
     const a = JSON.parse(text)
 
-    // Auto decline prohibited industries
-    if (a.is_prohibited) {
-      a.decision = 'decline'
-      a.decline_reason = 'Prohibited industry: ' + a.industry
-      a.approved_amount = null
-    }
+    // Auto decline prohibited or first position
+    if (a.is_prohibited) { a.decision = 'decline'; a.decline_reason = 'Prohibited industry: ' + a.industry; a.approved_amount = null }
+    if (a.position === 'first') { a.decision = 'decline'; a.decline_reason = 'First position - we fund second position and up only'; a.approved_amount = null }
 
-    // Auto decline first position
-    if (a.position === 'first') {
-      a.decision = 'decline'
-      a.decline_reason = 'First position - we fund second position and up only'
-      a.approved_amount = null
-    }
-
-    // If positions unclear with low confidence - send to manual review
+    // Low confidence positions = manual review
     if ((a.position === 'unclear' || a.positions_confidence === 'low') && a.decision !== 'decline') {
       a.decision = 'manual_review'
-      a.manual_review_reason = (a.manual_review_reason || '') + ' Position count unclear - manual review needed.'
+      a.manual_review_reason = 'Position count unclear - manual review needed. ' + (a.manual_review_reason || '')
     }
 
     // Determine final status
     let newStatus
-    if (a.decision === 'approve' && (a.risk_score || 0) >= 50) {
-      newStatus = 'offered'
-    } else if (a.decision === 'decline') {
-      newStatus = 'declined'
-    } else {
-      // manual_review or anything else
-      newStatus = 'underwriting'
-    }
+    if (a.decision === 'approve' && (a.risk_score || 0) >= 50) newStatus = 'offered'
+    else if (a.decision === 'decline') newStatus = 'declined'
+    else newStatus = 'underwriting'
 
     const termMonths = a.term_days ? Math.ceil(a.term_days / 30) : null
     const updates = { status: newStatus, updated_at: new Date().toISOString() }
@@ -170,7 +157,6 @@ Return ONLY valid JSON no markdown:
     if (a.approved_amount) updates.amount_approved = a.approved_amount
     if (a.buy_rate) updates.factor_rate = a.buy_rate
     if (termMonths) updates.term_months = termMonths
-
     await supabase.from('deals').update(updates).eq('id', dealId)
 
     // Main scrub note
@@ -194,54 +180,29 @@ Return ONLY valid JSON no markdown:
       noteBody = [
         'SENT TO MANUAL UNDERWRITING',
         'Reason: ' + (a.manual_review_reason || 'Insufficient data for automated decision'),
-        a.detected_mca_payments?.length > 0 ? 'Detected recurring debits (possible positions): ' + a.detected_mca_payments.map(p => p.company_name + ' $' + p.amount).join(', ') : '',
+        a.detected_mca_payments?.length > 0 ? 'Detected recurring debits: ' + a.detected_mca_payments.map(p => p.company_name + ' $' + p.amount + '/' + p.frequency).join(', ') : '',
         'Position confidence: ' + a.positions_confidence,
         a.summary
       ].filter(Boolean).join('\n')
     }
 
-    await supabase.from('deal_notes').insert({
-      deal_id: dealId, author: 'AI Scrubber',
-      category: newStatus === 'offered' ? 'approval' : newStatus === 'declined' ? 'risk' : 'system',
-      body: noteBody
-    })
+    await supabase.from('deal_notes').insert({ deal_id: dealId, author: 'AI Scrubber', category: newStatus === 'offered' ? 'approval' : newStatus === 'declined' ? 'risk' : 'system', body: noteBody })
 
-    // Add detected MCA payments as individual notes
     if (a.detected_mca_payments?.length > 0) {
-      await supabase.from('deal_notes').insert({
-        deal_id: dealId, author: 'AI Scrubber', category: 'risk',
-        body: 'Detected possible MCA positions from recurring debits:\n' + a.detected_mca_payments.map((p,i) => (i+1) + '. ' + (p.company_name||'Unknown') + ' - $' + (p.amount||'?') + '/day or /week').join('\n')
-      })
+      await supabase.from('deal_notes').insert({ deal_id: dealId, author: 'AI Scrubber', category: 'risk', body: 'Possible MCA positions detected:\n' + a.detected_mca_payments.map((p,i) => (i+1) + '. ' + (p.company_name||'Unknown') + ' - $' + (p.amount||'?') + '/' + (p.frequency||'unknown')).join('\n') })
     }
-
-    // Add individual flags
-    for (const flag of (a.flags || [])) {
-      await supabase.from('deal_notes').insert({ deal_id: dealId, author: 'AI Scrubber', category: 'risk', body: flag })
-    }
-
-    // Add conditions
-    for (const cond of (a.conditions || [])) {
-      await supabase.from('deal_notes').insert({ deal_id: dealId, author: 'AI Scrubber', category: 'condition', body: cond })
-    }
+    for (const flag of (a.flags || [])) await supabase.from('deal_notes').insert({ deal_id: dealId, author: 'AI Scrubber', category: 'risk', body: flag })
+    for (const cond of (a.conditions || [])) await supabase.from('deal_notes').insert({ deal_id: dealId, author: 'AI Scrubber', category: 'condition', body: cond })
 
     return res.status(200).json({
-      dealId, dealNumber: deal.deal_number,
-      approved: newStatus === 'offered',
-      decision: a.decision, status: newStatus,
-      riskScore: a.risk_score,
-      declineReason: a.decline_reason,
-      manualReviewReason: a.manual_review_reason,
-      industry: a.industry,
-      estimatedPositions: a.estimated_positions,
-      positionsConfidence: a.positions_confidence,
-      detectedMcaPayments: a.detected_mca_payments,
-      approvedAmount: a.approved_amount,
-      buyRate: a.buy_rate, sellRate: 1.499,
-      termDays: a.term_days,
-      ourProfit: a.our_profit,
-      merchantPayback: a.merchant_payback,
-      flags: a.flags, conditions: a.conditions,
-      summary: a.summary
+      dealId, dealNumber: deal.deal_number, approved: newStatus === 'offered',
+      decision: a.decision, status: newStatus, riskScore: a.risk_score,
+      declineReason: a.decline_reason, manualReviewReason: a.manual_review_reason,
+      industry: a.industry, estimatedPositions: a.estimated_positions,
+      positionsConfidence: a.positions_confidence, detectedMcaPayments: a.detected_mca_payments,
+      approvedAmount: a.approved_amount, buyRate: a.buy_rate, sellRate: 1.499,
+      termDays: a.term_days, ourProfit: a.our_profit, merchantPayback: a.merchant_payback,
+      flags: a.flags, conditions: a.conditions, summary: a.summary
     })
 
   } catch (err) {
