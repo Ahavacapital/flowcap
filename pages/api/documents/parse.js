@@ -1,197 +1,130 @@
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
-
   try {
     const { dealId } = req.body
     if (!dealId) return res.status(400).json({ error: 'dealId required' })
 
     const { createClient } = require('@supabase/supabase-js')
     const Anthropic = require('@anthropic-ai/sdk')
+    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+    const anthropic = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-    )
+    const { data: deal } = await supabase.from('deals').select('*').eq('id', dealId).single()
+    if (!deal) return res.status(404).json({ error: 'Deal not found' })
 
-    const anthropic = new Anthropic.default({
-      apiKey: process.env.ANTHROPIC_API_KEY
-    })
-
-    // Get all documents for this deal
+    // Get bank statement documents
     const { data: docs } = await supabase
       .from('documents')
       .select('*')
       .eq('deal_id', dealId)
-      .in('doc_type', ['bank_statement', 'other'])
+      .eq('doc_type', 'bank_statement')
       .order('created_at', { ascending: false })
+      .limit(4)
 
     if (!docs || docs.length === 0) {
-      return res.status(200).json({
-        success: false,
-        message: 'No bank statements found for this deal',
-        extracted: null
-      })
+      return res.json({ success: false, message: 'No bank statements found for this deal', extracted: null })
     }
 
-    // Get the deal info
-    const { data: deal } = await supabase
-      .from('deals')
-      .select('*')
-      .eq('id', dealId)
-      .single()
-
-    // Download and process each document
-    const documentContents = []
-
-    for (const doc of docs.slice(0, 5)) { // Max 5 docs to avoid token limits
+    // Download PDFs from storage - max 3 to avoid token limits
+    const pdfsToAnalyze = []
+    for (const doc of docs.slice(0, 3)) {
       try {
-        const { data: fileData, error: downloadError } = await supabase.storage
+        const { data: fileData, error: dlErr } = await supabase.storage
           .from('deal-documents')
           .download(doc.storage_path)
-
-        if (downloadError || !fileData) continue
-
-        // Convert to base64
+        if (dlErr || !fileData) { console.error('Download error:', dlErr?.message); continue }
         const arrayBuffer = await fileData.arrayBuffer()
         const base64 = Buffer.from(arrayBuffer).toString('base64')
-        const mimeType = doc.mime_type || 'application/pdf'
-
-        documentContents.push({
-          name: doc.name,
-          base64,
-          mimeType,
-          docType: doc.doc_type
-        })
-      } catch (err) {
-        console.error('Error downloading doc:', doc.name, err.message)
-      }
+        // Skip files larger than 4MB (too large for Claude)
+        if (base64.length > 5000000) { console.log('Skipping large file:', doc.name); continue }
+        pdfsToAnalyze.push({ name: doc.name, base64 })
+      } catch (e) { console.error('Error processing doc:', doc.name, e.message) }
     }
 
-    if (documentContents.length === 0) {
-      return res.status(200).json({
-        success: false,
-        message: 'Could not download documents',
-        extracted: null
-      })
+    if (pdfsToAnalyze.length === 0) {
+      return res.json({ success: false, message: 'Could not download bank statements', extracted: null })
     }
 
-    // Build message content with all documents
+    // Build message with PDFs - send one at a time if multiple
+    // Use text extraction approach instead of document type to avoid 400 errors
     const messageContent = []
 
-    for (const doc of documentContents) {
+    for (const pdf of pdfsToAnalyze) {
       messageContent.push({
         type: 'text',
-        text: 'Document: ' + doc.name
+        text: 'Bank statement file: ' + pdf.name
       })
-
-      if (doc.mimeType === 'application/pdf' || doc.mimeType === 'application/octet-stream') {
-        messageContent.push({
-          type: 'document',
-          source: {
-            type: 'base64',
-            media_type: 'application/pdf',
-            data: doc.base64
-          }
-        })
-      } else if (doc.mimeType.startsWith('image/')) {
-        messageContent.push({
-          type: 'image',
-          source: {
-            type: 'base64',
-            media_type: doc.mimeType,
-            data: doc.base64
-          }
-        })
-      }
+      messageContent.push({
+        type: 'document',
+        source: {
+          type: 'base64',
+          media_type: 'application/pdf',
+          data: pdf.base64
+        }
+      })
     }
 
     messageContent.push({
       type: 'text',
-      text: `You are an expert MCA underwriter analyzing bank statements for ${deal.business_name}.
+      text: `You are an MCA underwriter analyzing bank statements for ${deal.business_name}.
 
-Extract ALL of the following financial data from these bank statements. Be precise and thorough.
+Extract financial data from these bank statements. Use only the most recent 3-4 months of data.
 
-IMPORTANT INSTRUCTIONS:
-- Look at ALL months provided and calculate averages
-- Count negative balance days carefully - these are days where the ending balance was below $0
-- Count NSF/returned items carefully
-- Look for any existing MCA/loan payments (ACH debits that repeat regularly - these indicate existing positions)
-- Time in business = how long the account has been open OR earliest transaction date
-- Be conservative - if unsure, note the uncertainty
+IMPORTANT: Look carefully for recurring daily or weekly ACH debits of similar amounts - these indicate existing MCA positions.
 
-Return ONLY valid JSON, no markdown, no explanation:
+Return ONLY valid JSON, no markdown:
 {
-  "months_analyzed": <number of months of statements provided>,
-  "monthly_revenues": [<array of monthly deposit totals, most recent first>],
-  "avg_monthly_revenue": <average of all months>,
-  "avg_daily_balance": <average ending daily balance across all months>,
-  "lowest_daily_balance": <lowest single day balance seen>,
-  "negative_days_per_month": <average number of days per month with negative balance>,
-  "nsf_count_per_month": <average NSFs/returned items per month>,
-  "existing_mca_payments": [<array of recurring ACH debits that appear to be MCA/loan payments, with amounts>],
-  "estimated_positions": <number of estimated existing MCA positions based on recurring debits>,
-  "account_open_date": "<earliest date seen in statements or 'unknown'>",
-  "months_in_business": <estimated months in business>,
-  "revenue_trend": <"increasing", "decreasing", or "stable">,
-  "revenue_consistency": <"consistent", "moderate_variation", or "high_variation">,
-  "large_deposits": [<any unusually large one-time deposits that should be excluded>],
-  "flags": [<array of risk concerns found in the statements>],
-  "notes": "<any important observations about the statements>",
-  "confidence": <"high", "medium", or "low" - how confident you are in the extraction>
+  "months_analyzed": <number>,
+  "avg_monthly_revenue": <number>,
+  "avg_daily_balance": <number>,
+  "negative_days_per_month": <number>,
+  "nsf_count_per_month": <number>,
+  "detected_mca_payments": [{"company": "name", "amount": 000, "frequency": "daily/weekly"}],
+  "estimated_positions": <number>,
+  "months_in_business": <number or null>,
+  "revenue_trend": "increasing/decreasing/stable",
+  "flags": [],
+  "confidence": "high/medium/low",
+  "notes": "brief summary"
 }`
     })
 
-    // Call Claude to analyze the documents
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 2048,
-      messages: [{
-        role: 'user',
-        content: messageContent
-      }]
+      max_tokens: 1024,
+      messages: [{ role: 'user', content: messageContent }]
     })
 
-    const text = response.content[0].text.trim()
-    const clean = text.replace(/```json\n?|\n?```/g, '').trim()
-    const extracted = JSON.parse(clean)
+    const text = response.content[0].text.trim().replace(/```json\n?|\n?```/g, '').trim()
+    const extracted = JSON.parse(text)
 
-    // Save extracted data to the deal
-    const updates = {}
+    // Update deal with extracted data
+    const updates = { updated_at: new Date().toISOString() }
     if (extracted.avg_monthly_revenue) updates.monthly_revenue = extracted.avg_monthly_revenue
     if (extracted.avg_daily_balance) updates.avg_daily_balance = extracted.avg_daily_balance
-    if (extracted.estimated_positions !== undefined) updates.positions = extracted.estimated_positions
-    updates.updated_at = new Date().toISOString()
-
+    if (extracted.estimated_positions != null) updates.positions = extracted.estimated_positions
     await supabase.from('deals').update(updates).eq('id', dealId)
 
-    // Save a note with the extraction results
+    // Save analysis as a note
     const noteBody = [
-      'Bank statement analysis complete (' + extracted.months_analyzed + ' months)',
-      'Avg monthly revenue: $' + (extracted.avg_monthly_revenue || 0).toLocaleString(),
-      'Avg daily balance: $' + (extracted.avg_daily_balance || 0).toLocaleString(),
-      'Negative days/month: ' + (extracted.negative_days_per_month || 0),
-      'NSFs/month: ' + (extracted.nsf_count_per_month || 0),
-      'Estimated positions: ' + (extracted.estimated_positions || 0),
-      'Revenue trend: ' + (extracted.revenue_trend || 'unknown'),
-      'Confidence: ' + (extracted.confidence || 'unknown'),
+      'Bank statement analysis (' + extracted.months_analyzed + ' months | Confidence: ' + extracted.confidence + ')',
+      'Avg monthly revenue: $' + Number(extracted.avg_monthly_revenue||0).toLocaleString(),
+      'Avg daily balance: $' + Number(extracted.avg_daily_balance||0).toLocaleString(),
+      'Negative days/month: ' + (extracted.negative_days_per_month||0),
+      'NSFs/month: ' + (extracted.nsf_count_per_month||0),
+      'Estimated positions: ' + (extracted.estimated_positions||0),
+      extracted.detected_mca_payments?.length > 0 ? 'Detected MCA payments: ' + extracted.detected_mca_payments.map(p=>p.company+' $'+p.amount+'/'+p.frequency).join(', ') : '',
+      'Revenue trend: ' + (extracted.revenue_trend||'unknown'),
       extracted.flags?.length > 0 ? 'Flags: ' + extracted.flags.join(', ') : '',
-      extracted.notes ? 'Notes: ' + extracted.notes : ''
+      extracted.notes || ''
     ].filter(Boolean).join('\n')
 
     await supabase.from('deal_notes').insert({
-      deal_id: dealId,
-      author: 'Document Parser',
-      category: 'system',
-      body: noteBody
+      deal_id: dealId, author: 'Document Parser',
+      category: 'system', body: noteBody
     })
 
-    return res.status(200).json({
-      success: true,
-      dealId,
-      docsAnalyzed: documentContents.length,
-      extracted,
-      updatedDeal: updates
-    })
+    return res.json({ success: true, dealId, docsAnalyzed: pdfsToAnalyze.length, extracted, updatedDeal: updates })
 
   } catch (err) {
     console.error('Document parser error:', err.message)
