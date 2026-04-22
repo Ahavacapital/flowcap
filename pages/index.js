@@ -177,7 +177,7 @@ const IC={
 const Ic=({n,s=16,c='currentColor'})=><svg width={s} height={s} viewBox="0 0 24 24" fill={c}>{IC[n]}</svg>;
 
 const SC={new:'#6366f1',scrubbing:'#a78bfa',underwriting:'#f59e0b',offered:'#10b981',docs:'#06b6d4',contracts:'#3b82f6',bankverify:'#f97316',funded:'#10b981',declined:'#ef4444',renewal:'#06b6d4'};
-const SL={new:'New',scrubbing:'Scrubbing',underwriting:'Underwriting',offered:'Offered',docs:'Docs Out',contracts:'Contracts',bankverify:'Bank Verify',funded:'Funded',declined:'Declined',renewal:'Renewal'};
+const SL={new:'New',scrubbing:'Scrubbing',underwriting:'Underwriting',pending:'On Hold',offered:'Offered',docs:'Docs Out',contracts:'Contracts',bankverify:'Bank Verify',funded:'Funded',declined:'Declined',renewal:'Renewal'};
 const NS={new:'scrubbing',scrubbing:'underwriting',underwriting:'offered',offered:'docs',docs:'contracts',contracts:'bankverify',bankverify:'funded'};
 const STEPS=['new','scrubbing','underwriting','offered','docs','contracts','bankverify','funded'];
 const NCC={general:'var(--t3)',risk:'var(--red)',approval:'var(--grn)',condition:'var(--amb)',followup:'var(--pur)',system:'var(--acc)'};
@@ -222,7 +222,7 @@ function App(){
   const delDeal=useCallback(id=>{setDeals(ds=>ds.filter(d=>d.id!==id));setSel(null);notify('Deal deleted')},[]);
   const active=deals.filter(d=>!['funded','declined'].includes(d.status));
   const funded=deals.filter(d=>d.status==='funded');
-  const uwCount=deals.filter(d=>d.status==='underwriting').length;
+  const uwCount=deals.filter(d=>['underwriting','pending'].includes(d.status)).length;
   const todayCnt=deals.filter(d=>isToday(d.submittedAt)).length;
   const tf=funded.reduce((s,d)=>s+(d.amount||0),0);
   const tp=deals.reduce((s,d)=>s+(d.profit||0),0);
@@ -421,7 +421,7 @@ function DealsList({deals,setSel,setShowNew,delDeal}){
 }
 
 function Pipeline({deals,setSel}){
-  const stages=['new','scrubbing','underwriting','offered','docs','contracts','bankverify'];
+  const stages=['new','scrubbing','underwriting','pending','offered','docs','contracts','bankverify'];
   return(
     <div className="fa pb">
       {stages.map(s=>{
@@ -454,7 +454,7 @@ function Pipeline({deals,setSel}){
 }
 
 function UWQueue({deals,onOpen}){
-  const queue=deals.filter(d=>d.status==='underwriting');
+  const queue=deals.filter(d=>['underwriting','pending'].includes(d.status));
   return(
     <div className="fa">
       <div className="cd">
@@ -474,7 +474,7 @@ function UWQueue({deals,onOpen}){
               <div style={{textAlign:'right'}}><div style={{fontFamily:'var(--mono)',fontWeight:600,fontSize:14,color:d.monthlyRev>=35000?'var(--grn)':'var(--red)'}}>{f$(d.monthlyRev)}</div><div style={{fontSize:10,color:'var(--t3)'}}>monthly rev</div></div>
             </div>
             <div style={{display:'flex',gap:7,marginTop:9,flexWrap:'wrap'}}>
-              {[{label:'Revenue',ok:d.monthlyRev>=35000},{label:'Balance',ok:d.dailyBal>=1000},{label:'Positions',ok:d.positions<3}].map(({label,ok})=>(
+              {d.status==='pending'?[{label:'ON HOLD',ok:false},{label:'Manual Review',ok:false}]:[{label:'Revenue',ok:d.monthlyRev>=35000},{label:'Balance',ok:d.dailyBal>=1000},{label:'Positions',ok:d.positions<3}]}.map(({label,ok})=>(
                 <span key={label} className="tag" style={{background:ok?'rgba(16,185,129,.1)':'rgba(239,68,68,.08)',color:ok?'var(--grn)':'var(--red)',border:'1px solid '+(ok?'rgba(16,185,129,.2)':'rgba(239,68,68,.15)')}}>
                   {ok?'✓':'✗'} {label}
                 </span>
