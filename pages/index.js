@@ -180,11 +180,11 @@ const SC={new:'#6366f1',scrubbing:'#a78bfa',underwriting:'#f59e0b',offered:'#10b
 const SL={new:'New',scrubbing:'Scrubbing',underwriting:'Underwriting',pending:'On Hold',offered:'Offered',docs:'Docs Out',contracts:'Contracts',bankverify:'Bank Verify',funded:'Funded',declined:'Declined',renewal:'Renewal'};
 const NS={new:'scrubbing',scrubbing:'underwriting',underwriting:'offered',offered:'docs',docs:'contracts',contracts:'bankverify',bankverify:'funded'};
 const STEPS=['new','scrubbing','underwriting','offered','docs','contracts','bankverify','funded'];
-const NCC={general:'var(--t3)',risk:'var(--red)',approval:'var(--grn)',condition:'var(--amb)',followup:'var(--pur)',system:'var(--acc)'};
+const NCC={general:'var(--text3)',risk:'var(--red)',approval:'var(--green)',condition:'var(--amber)',followup:'var(--pur)',system:'var(--accent)'};
 
 const f$=n=>n!=null?'$'+Number(n).toLocaleString():'--';
 const fx=n=>n!=null?Number(n).toFixed(3)+'x':'--';
-const rc=r=>r>=70?'var(--grn)':r>=50?'var(--amb)':'var(--red)';
+const rc=r=>r>=70?'var(--green)':r>=50?'var(--amber)':'var(--red)';
 const isToday=d=>{if(!d)return false;return new Date(d).toDateString()===new Date().toDateString()};
 
 function Pill({status}){
@@ -259,14 +259,14 @@ function App(){
           <div className="sb-footer">
             <div style={{display:'flex',alignItems:'center',gap:8}}>
               <div className="av">JD</div>
-              <div><div style={{fontSize:12,fontWeight:600,color:'var(--t1)'}}>Jamie Donahue</div><div style={{fontSize:10,color:'var(--t3)',fontFamily:'var(--mono)'}}>Admin</div></div>
+              <div><div style={{fontSize:12,fontWeight:600,color:'var(--t1)'}}>Jamie Donahue</div><div style={{fontSize:10,color:'var(--text3)',fontFamily:'var(--mono)'}}>Admin</div></div>
             </div>
           </div>
         </div>
         <div className="mn">
           <div className="tb">
             <div className="tb-title">{PT[pg]||pg}</div>
-            {todayCnt>0&&<span style={{fontSize:10,color:'var(--grn)',background:'rgba(16,185,129,.12)',border:'1px solid rgba(16,185,129,.2)',padding:'2px 8px',borderRadius:10,fontFamily:'var(--mono)',fontWeight:600}}>{todayCnt} new today</span>}
+            {todayCnt>0&&<span style={{fontSize:10,color:'var(--green)',background:'rgba(16,185,129,.12)',border:'1px solid rgba(16,185,129,.2)',padding:'2px 8px',borderRadius:10,fontFamily:'var(--mono)',fontWeight:600}}>{todayCnt} new today</span>}
             <div className="tb-actions">
               <button className="btn bg bs" onClick={loadDeals}><Ic n="refresh" s={13}/>Refresh</button>
               <button className="btn bg bs" onClick={syncSheets} disabled={syncing}>{syncing?'Syncing...':'Sync Sheets'}</button>
@@ -303,13 +303,13 @@ function Dashboard({deals,setPg,setSel,tf,tp,active,funded,todayCnt,delDeal}){
     <div className="fa">
       <div className="sg">
         <div className="sc"><div className="sl">Total Deals</div><div className="sv">{deals.length}</div><div className="ss">All time</div></div>
-        <div className="sc"><div className="sl">UW Queue</div><div className="sv" style={{color:'var(--amb)'}}>{deals.filter(d=>d.status==='underwriting').length}</div><div className="ss">Awaiting review</div></div>
-        <div className="sc"><div className="sl">Funded</div><div className="sv" style={{color:'var(--grn)'}}>{funded.length}</div><div className="ss">{f$(tf)} volume</div></div>
+        <div className="sc"><div className="sl">UW Queue</div><div className="sv" style={{color:'var(--amber)'}}>{deals.filter(d=>d.status==='underwriting').length}</div><div className="ss">Awaiting review</div></div>
+        <div className="sc"><div className="sl">Funded</div><div className="sv" style={{color:'var(--green)'}}>{funded.length}</div><div className="ss">{f$(tf)} volume</div></div>
         <div className="sc"><div className="sl">Approval Rate</div><div className="sv" style={{fontSize:20}}>{apr}%</div><div className="ss">{declined} declined</div></div>
       </div>
       {today.length>0&&(
         <div className="cd" style={{marginBottom:14,padding:'10px 14px',background:'rgba(16,185,129,.06)',borderColor:'rgba(16,185,129,.2)'}}>
-          <div style={{display:'flex',alignItems:'center',gap:8}}><span style={{width:7,height:7,borderRadius:'50%',background:'var(--grn)',display:'block',flexShrink:0}}/><div style={{flex:1,fontSize:13}}><span style={{fontWeight:600,color:'var(--grn)'}}>{today.length} new today: </span><span style={{color:'var(--t3)'}}>{today.slice(0,3).map(d=>d.business).join(', ')}{today.length>3?' ...':''}</span></div><button className="btn bg bs" onClick={()=>setPg('deals')}>View All</button></div>
+          <div style={{display:'flex',alignItems:'center',gap:8}}><span style={{width:7,height:7,borderRadius:'50%',background:'var(--green)',display:'block',flexShrink:0}}/><div style={{flex:1,fontSize:13}}><span style={{fontWeight:600,color:'var(--green)'}}>{today.length} new today: </span><span style={{color:'var(--text3)'}}>{today.slice(0,3).map(d=>d.business).join(', ')}{today.length>3?' ...':''}</span></div><button className="btn bg bs" onClick={()=>setPg('deals')}>View All</button></div>
         </div>
       )}
       <div style={{display:'grid',gridTemplateColumns:'1fr 260px',gap:12}}>
@@ -320,13 +320,13 @@ function Dashboard({deals,setPg,setSel,tf,tp,active,funded,todayCnt,delDeal}){
               <thead><tr><th>Deal ID</th><th>Merchant</th><th>Broker</th><th>Amount</th><th>Status</th><th>Risk</th><th>Profit</th><th></th></tr></thead>
               <tbody>{deals.slice(0,8).map(d=>(
                 <tr key={d.id} className="cl" onClick={()=>setSel(d)}>
-                  <td><span style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--acc)'}}>{d.id}</span>{isToday(d.submittedAt)&&<span style={{marginLeft:5,fontSize:9,background:'var(--grn)',color:'#fff',padding:'1px 4px',borderRadius:3,fontFamily:'var(--mono)'}}>NEW</span>}</td>
-                  <td><div style={{fontWeight:600,maxWidth:140,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{d.business}</div><div style={{fontSize:10,color:'var(--t3)',fontFamily:'var(--mono)'}}>{d.contact}</div></td>
+                  <td><span style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--accent)'}}>{d.id}</span>{isToday(d.submittedAt)&&<span style={{marginLeft:5,fontSize:9,background:'var(--green)',color:'#fff',padding:'1px 4px',borderRadius:3,fontFamily:'var(--mono)'}}>NEW</span>}</td>
+                  <td><div style={{fontWeight:600,maxWidth:140,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{d.business}</div><div style={{fontSize:10,color:'var(--text3)',fontFamily:'var(--mono)'}}>{d.contact}</div></td>
                   <td style={{fontSize:12,color:'var(--t2)',maxWidth:110,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{d.broker}</td>
-                  <td><span style={{fontFamily:'var(--mono)',fontWeight:600,color:d.amount?'var(--acc)':'var(--t3)'}}>{d.amount?f$(d.amount):f$(d.requested)}</span></td>
+                  <td><span style={{fontFamily:'var(--mono)',fontWeight:600,color:d.amount?'var(--accent)':'var(--text3)'}}>{d.amount?f$(d.amount):f$(d.requested)}</span></td>
                   <td><Pill status={d.status}/></td>
                   <td>{d.risk!=null?<span style={{fontFamily:'var(--mono)',fontWeight:700,color:rc(d.risk)}}>{d.risk}</span>:'--'}</td>
-                  <td style={{fontFamily:'var(--mono)',fontWeight:600,color:d.profit?'var(--grn)':'var(--t3)'}}>{d.profit?f$(d.profit):'--'}</td>
+                  <td style={{fontFamily:'var(--mono)',fontWeight:600,color:d.profit?'var(--green)':'var(--text3)'}}>{d.profit?f$(d.profit):'--'}</td>
                   <td onClick={e=>e.stopPropagation()}><button className="btn brd bs" onClick={()=>delDeal(d.id)}><Ic n="x" s={12}/></button></td>
                 </tr>
               ))}</tbody>
@@ -342,8 +342,8 @@ function Dashboard({deals,setPg,setSel,tf,tp,active,funded,todayCnt,delDeal}){
             <div className="stitle" style={{marginBottom:12}}>Automation</div>
             {[{l:'Gmail watcher',s:'Every 5 min',ok:true},{l:'AI scrubber',s:'Every 3 min',ok:true},{l:'Sheets sync',s:'Every 15 min',ok:true},{l:'Doc parser',s:'Auto on new deals',ok:true}].map((i,x)=>(
               <div key={x} style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
-                <span style={{width:6,height:6,borderRadius:'50%',background:i.ok?'var(--grn)':'var(--red)',display:'block',flexShrink:0}}/>
-                <div><div style={{fontSize:12,fontWeight:500,color:'var(--t1)'}}>{i.l}</div><div style={{fontSize:10,color:'var(--t3)'}}>{i.s}</div></div>
+                <span style={{width:6,height:6,borderRadius:'50%',background:i.ok?'var(--green)':'var(--red)',display:'block',flexShrink:0}}/>
+                <div><div style={{fontSize:12,fontWeight:500,color:'var(--t1)'}}>{i.l}</div><div style={{fontSize:10,color:'var(--text3)'}}>{i.s}</div></div>
               </div>
             ))}
           </div>
@@ -399,19 +399,19 @@ function DealsList({deals,setSel,setShowNew,delDeal}){
             </tr></thead>
             <tbody>{filtered.map(d=>(
               <tr key={d.id} className="cl" onClick={()=>setSel(d)}>
-                <td><span style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--acc)'}}>{d.id}</span>{isToday(d.submittedAt)&&<span style={{marginLeft:5,fontSize:9,background:'var(--grn)',color:'#fff',padding:'1px 4px',borderRadius:3}}>NEW</span>}</td>
-                <td><div style={{fontWeight:600,maxWidth:150,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{d.business}</div><div style={{fontSize:10,color:'var(--t3)',fontFamily:'var(--mono)'}}>{d.email}</div></td>
+                <td><span style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--accent)'}}>{d.id}</span>{isToday(d.submittedAt)&&<span style={{marginLeft:5,fontSize:9,background:'var(--green)',color:'#fff',padding:'1px 4px',borderRadius:3}}>NEW</span>}</td>
+                <td><div style={{fontWeight:600,maxWidth:150,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{d.business}</div><div style={{fontSize:10,color:'var(--text3)',fontFamily:'var(--mono)'}}>{d.email}</div></td>
                 <td style={{fontSize:12,color:'var(--t2)',maxWidth:120,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{d.broker}</td>
-                <td><span style={{fontFamily:'var(--mono)',fontWeight:600,color:d.amount?'var(--acc)':'var(--t3)'}}>{d.amount?f$(d.amount):f$(d.requested)}</span></td>
+                <td><span style={{fontFamily:'var(--mono)',fontWeight:600,color:d.amount?'var(--accent)':'var(--text3)'}}>{d.amount?f$(d.amount):f$(d.requested)}</span></td>
                 <td><Pill status={d.status}/></td>
                 <td>{d.risk!=null?<div><span style={{fontFamily:'var(--mono)',fontWeight:700,fontSize:12,color:rc(d.risk)}}>{d.risk}</span><div className="sbar" style={{width:44,marginTop:2}}><div className="sfill" style={{width:d.risk+'%',background:rc(d.risk)}}/></div></div>:'--'}</td>
-                <td style={{fontFamily:'var(--mono)',fontWeight:600,color:d.profit?'var(--grn)':'var(--t3)'}}>{d.profit?f$(d.profit):'--'}</td>
-                <td style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--t3)'}}>{d.factor?fx(d.factor)+' / 1.499x':'--'}</td>
-                <td style={{fontSize:11,color:'var(--t3)',fontFamily:'var(--mono)'}}>{d.submitted}</td>
+                <td style={{fontFamily:'var(--mono)',fontWeight:600,color:d.profit?'var(--green)':'var(--text3)'}}>{d.profit?f$(d.profit):'--'}</td>
+                <td style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--text3)'}}>{d.factor?fx(d.factor)+' / 1.499x':'--'}</td>
+                <td style={{fontSize:11,color:'var(--text3)',fontFamily:'var(--mono)'}}>{d.submitted}</td>
                 <td onClick={e=>e.stopPropagation()}><button className="btn brd bs" onClick={()=>delDeal(d.id)}><Ic n="x" s={12}/></button></td>
               </tr>
             ))}
-            {!filtered.length&&<tr><td colSpan={10} style={{textAlign:'center',padding:32,color:'var(--t3)'}}>No deals found</td></tr>}
+            {!filtered.length&&<tr><td colSpan={10} style={{textAlign:'center',padding:32,color:'var(--text3)'}}>No deals found</td></tr>}
             </tbody>
           </table>
         </div>
@@ -431,21 +431,21 @@ function Pipeline({deals,setSel}){
           <div key={s} className="pc">
             <div className="pch">
               <span style={{fontSize:9,fontFamily:'var(--mono)',fontWeight:600,color:c,textTransform:'uppercase'}}>{SL[s]}</span>
-              <span style={{fontSize:9,fontFamily:'var(--mono)',fontWeight:700,color:'var(--t3)'}}>{sd.length}</span>
+              <span style={{fontSize:9,fontFamily:'var(--mono)',fontWeight:700,color:'var(--text3)'}}>{sd.length}</span>
             </div>
             {sd.map(d=>(
               <div key={d.id} className="dc" onClick={()=>setSel(d)}>
                 <div style={{fontSize:11,fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',marginBottom:3,display:'flex',alignItems:'center',gap:4}}>
-                  {isToday(d.submittedAt)&&<span style={{width:5,height:5,borderRadius:'50%',background:'var(--grn)',flexShrink:0,display:'block'}}/>}
+                  {isToday(d.submittedAt)&&<span style={{width:5,height:5,borderRadius:'50%',background:'var(--green)',flexShrink:0,display:'block'}}/>}
                   {d.business}
                 </div>
-                <div style={{fontSize:9,color:'var(--t3)',fontFamily:'var(--mono)',marginBottom:4}}>{d.id}</div>
-                <div style={{fontSize:11,fontFamily:'var(--mono)',fontWeight:600,color:d.amount?'var(--acc)':'var(--t3)'}}>{d.amount?f$(d.amount):f$(d.requested)}</div>
+                <div style={{fontSize:9,color:'var(--text3)',fontFamily:'var(--mono)',marginBottom:4}}>{d.id}</div>
+                <div style={{fontSize:11,fontFamily:'var(--mono)',fontWeight:600,color:d.amount?'var(--accent)':'var(--text3)'}}>{d.amount?f$(d.amount):f$(d.requested)}</div>
                 {d.risk!=null&&<div style={{marginTop:4}}><div className="sbar"><div className="sfill" style={{width:d.risk+'%',background:rc(d.risk)}}/></div></div>}
-                {d.profit&&<div style={{fontSize:10,color:'var(--grn)',fontFamily:'var(--mono)',marginTop:3,fontWeight:600}}>+{f$(d.profit)}</div>}
+                {d.profit&&<div style={{fontSize:10,color:'var(--green)',fontFamily:'var(--mono)',marginTop:3,fontWeight:600}}>+{f$(d.profit)}</div>}
               </div>
             ))}
-            {!sd.length&&<div style={{padding:12,textAlign:'center',fontSize:10,color:'var(--t3)'}}>empty</div>}
+            {!sd.length&&<div style={{padding:12,textAlign:'center',fontSize:10,color:'var(--text3)'}}>empty</div>}
           </div>
         );
       })}
@@ -460,22 +460,22 @@ function UWQueue({deals,onOpen}){
       <div className="cd">
         <div className="sh" style={{marginBottom:16}}>
           <div className="stitle">Underwriting Queue</div>
-          <span className="tag" style={{background:'rgba(245,158,11,.12)',color:'var(--amb)',border:'1px solid rgba(245,158,11,.2)'}}>{queue.length} pending</span>
+          <span className="tag" style={{background:'rgba(245,158,11,.12)',color:'var(--amber)',border:'1px solid rgba(245,158,11,.2)'}}>{queue.length} pending</span>
         </div>
         {!queue.length?(
-          <div style={{textAlign:'center',padding:'40px 0',color:'var(--t3)'}}>
+          <div style={{textAlign:'center',padding:'40px 0',color:'var(--text3)'}}>
             <Ic n="check" s={32} c="var(--grn)"/>
             <div style={{marginTop:12}}>No files awaiting review</div>
           </div>
         ):queue.map(d=>(
           <div key={d.id} className="uf" style={{marginBottom:10,cursor:'pointer'}} onClick={()=>onOpen(d)}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-              <div><div style={{fontWeight:700}}>{d.business}</div><div style={{fontSize:10,color:'var(--t3)',fontFamily:'var(--mono)',marginTop:3}}>{d.id} · {d.broker} · {d.submitted}</div></div>
-              <div style={{textAlign:'right'}}><div style={{fontFamily:'var(--mono)',fontWeight:600,fontSize:14,color:d.monthlyRev>=35000?'var(--grn)':'var(--red)'}}>{f$(d.monthlyRev)}</div><div style={{fontSize:10,color:'var(--t3)'}}>monthly rev</div></div>
+              <div><div style={{fontWeight:700}}>{d.business}</div><div style={{fontSize:10,color:'var(--text3)',fontFamily:'var(--mono)',marginTop:3}}>{d.id} · {d.broker} · {d.submitted}</div></div>
+              <div style={{textAlign:'right'}}><div style={{fontFamily:'var(--mono)',fontWeight:600,fontSize:14,color:d.monthlyRev>=35000?'var(--green)':'var(--red)'}}>{f$(d.monthlyRev)}</div><div style={{fontSize:10,color:'var(--text3)'}}>monthly rev</div></div>
             </div>
             <div style={{display:'flex',gap:7,marginTop:9,flexWrap:'wrap'}}>
-              {d.status==='pending'?[{label:'ON HOLD',ok:false},{label:'Manual Review',ok:false}]:[{label:'Revenue',ok:d.monthlyRev>=35000},{label:'Balance',ok:d.dailyBal>=1000},{label:'Positions',ok:d.positions<3}]}.map(({label,ok})=>(
-                <span key={label} className="tag" style={{background:ok?'rgba(16,185,129,.1)':'rgba(239,68,68,.08)',color:ok?'var(--grn)':'var(--red)',border:'1px solid '+(ok?'rgba(16,185,129,.2)':'rgba(239,68,68,.15)')}}>
+              (d.status==='pending'?[{label:'ON HOLD',ok:false},{label:'Manual Review',ok:false}]:[{label:'Revenue',ok:d.monthlyRev>=35000},{label:'Balance',ok:d.dailyBal>=1000},{label:'Positions',ok:d.positions<3}]).map(({label,ok})=>(
+                <span key={label} className="tag" style={{background:ok?'rgba(16,185,129,.1)':'rgba(239,68,68,.08)',color:ok?'var(--green)':'var(--red)',border:'1px solid '+(ok?'rgba(16,185,129,.2)':'rgba(239,68,68,.15)')}}>
                   {ok?'✓':'✗'} {label}
                 </span>
               ))}
@@ -499,34 +499,34 @@ function Brokers({deals}){
   return(
     <div className="fa" style={{display:'grid',gridTemplateColumns:'230px 1fr',gap:12}}>
       <div>
-        <div style={{fontSize:10,color:'var(--t3)',fontFamily:'var(--mono)',textTransform:'uppercase',letterSpacing:'1px',marginBottom:10}}>{brokers.length} ISO shops</div>
+        <div style={{fontSize:10,color:'var(--text3)',fontFamily:'var(--mono)',textTransform:'uppercase',letterSpacing:'1px',marginBottom:10}}>{brokers.length} ISO shops</div>
         {brokers.map(b=>(
-          <div key={b.name} className="cd cd-sm" style={{cursor:'pointer',borderColor:sel?.name===b.name?'var(--acc)':'var(--b2)',marginBottom:8,transition:'border-color .15s'}} onClick={()=>setSel(b)}>
+          <div key={b.name} className="cd cd-sm" style={{cursor:'pointer',borderColor:sel?.name===b.name?'var(--accent)':'var(--b2)',marginBottom:8,transition:'border-color .15s'}} onClick={()=>setSel(b)}>
             <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:7}}><div className="av" style={{fontSize:10,width:26,height:26}}>{b.name.slice(0,2).toUpperCase()}</div><div style={{fontSize:13,fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{b.name}</div></div>
-            <div style={{display:'flex',gap:10,fontSize:10,fontFamily:'var(--mono)'}}><span style={{color:'var(--t3)'}}>Deals: <span style={{color:'var(--t1)',fontWeight:700}}>{b.total}</span></span><span style={{color:'var(--t3)'}}>Funded: <span style={{color:'var(--grn)',fontWeight:700}}>{b.funded}</span></span></div>
+            <div style={{display:'flex',gap:10,fontSize:10,fontFamily:'var(--mono)'}}><span style={{color:'var(--text3)'}}>Deals: <span style={{color:'var(--t1)',fontWeight:700}}>{b.total}</span></span><span style={{color:'var(--text3)'}}>Funded: <span style={{color:'var(--green)',fontWeight:700}}>{b.funded}</span></span></div>
           </div>
         ))}
-        {!brokers.length&&<div style={{color:'var(--t3)',fontSize:13}}>No brokers yet</div>}
+        {!brokers.length&&<div style={{color:'var(--text3)',fontSize:13}}>No brokers yet</div>}
       </div>
       {sel?(
         <div className="fa">
           <div className="cd" style={{marginBottom:12}}>
             <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}><div className="av" style={{width:38,height:38,fontSize:13}}>{sel.name.slice(0,2).toUpperCase()}</div><div style={{fontSize:16,fontWeight:700}}>{sel.name}</div></div>
             <div className="sg" style={{marginBottom:0}}>
-              <div className="sc" style={{padding:'10px 12px'}}><div className="sl">Volume</div><div className="sv" style={{fontSize:15,color:'var(--acc)'}}>{f$(sel.volume)}</div></div>
-              <div className="sc" style={{padding:'10px 12px'}}><div className="sl">Funded</div><div className="sv" style={{fontSize:15,color:'var(--grn)'}}>{sel.funded}</div></div>
-              <div className="sc" style={{padding:'10px 12px'}}><div className="sl">Active</div><div className="sv" style={{fontSize:15,color:'var(--amb)'}}>{sel.active}</div></div>
+              <div className="sc" style={{padding:'10px 12px'}}><div className="sl">Volume</div><div className="sv" style={{fontSize:15,color:'var(--accent)'}}>{f$(sel.volume)}</div></div>
+              <div className="sc" style={{padding:'10px 12px'}}><div className="sl">Funded</div><div className="sv" style={{fontSize:15,color:'var(--green)'}}>{sel.funded}</div></div>
+              <div className="sc" style={{padding:'10px 12px'}}><div className="sl">Active</div><div className="sv" style={{fontSize:15,color:'var(--amber)'}}>{sel.active}</div></div>
               <div className="sc" style={{padding:'10px 12px'}}><div className="sl">Conversion</div><div className="sv" style={{fontSize:15}}>{sel.total>0?Math.round(sel.funded/sel.total*100):0}%</div></div>
             </div>
           </div>
           <div className="cd" style={{padding:0}}>
             <table className="tbl"><thead><tr><th>ID</th><th>Business</th><th>Amount</th><th>Status</th><th>Risk</th></tr></thead>
             <tbody>{deals.filter(d=>d.broker===sel.name).map(d=>(
-              <tr key={d.id}><td style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--acc)'}}>{d.id}</td><td style={{fontWeight:600}}>{d.business}</td><td style={{fontFamily:'var(--mono)',fontWeight:600,color:d.amount?'var(--acc)':'var(--t3)'}}>{d.amount?f$(d.amount):f$(d.requested)}</td><td><Pill status={d.status}/></td><td>{d.risk!=null?<span style={{fontFamily:'var(--mono)',fontWeight:700,color:rc(d.risk)}}>{d.risk}</span>:'--'}</td></tr>
+              <tr key={d.id}><td style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--accent)'}}>{d.id}</td><td style={{fontWeight:600}}>{d.business}</td><td style={{fontFamily:'var(--mono)',fontWeight:600,color:d.amount?'var(--accent)':'var(--text3)'}}>{d.amount?f$(d.amount):f$(d.requested)}</td><td><Pill status={d.status}/></td><td>{d.risk!=null?<span style={{fontFamily:'var(--mono)',fontWeight:700,color:rc(d.risk)}}>{d.risk}</span>:'--'}</td></tr>
             ))}</tbody></table>
           </div>
         </div>
-      ):<div style={{textAlign:'center',padding:48,color:'var(--t3)'}}>Select a broker to view their deals</div>}
+      ):<div style={{textAlign:'center',padding:48,color:'var(--text3)'}}>Select a broker to view their deals</div>}
     </div>
   );
 }
@@ -535,16 +535,16 @@ function Contracts({deals,setSel}){
   const cd=deals.filter(d=>['offered','contracts','bankverify','funded'].includes(d.status));
   return(
     <div className="fa">
-      <div style={{marginBottom:14,fontSize:13,color:'var(--t3)'}}>DocuSign integration — contracts auto-generated on offer acceptance</div>
+      <div style={{marginBottom:14,fontSize:13,color:'var(--text3)'}}>DocuSign integration — contracts auto-generated on offer acceptance</div>
       {cd.map(d=>(
         <div key={d.id} className="cd cd-sm" style={{display:'flex',alignItems:'center',gap:12,marginBottom:9,cursor:'pointer'}} onClick={()=>setSel(d)}>
-          <div style={{flex:1}}><div style={{fontWeight:700,fontSize:14}}>{d.business}</div><div style={{fontSize:10,color:'var(--t3)',fontFamily:'var(--mono)',marginTop:3}}>{d.id} · {d.broker}</div></div>
-          <div style={{textAlign:'right'}}><div style={{fontFamily:'var(--mono)',fontWeight:700,fontSize:14,color:'var(--acc)'}}>{f$(d.amount)}</div><div style={{fontSize:10,color:'var(--t3)',fontFamily:'var(--mono)'}}>{fx(d.factor)} buy · 1.499x sell</div></div>
+          <div style={{flex:1}}><div style={{fontWeight:700,fontSize:14}}>{d.business}</div><div style={{fontSize:10,color:'var(--text3)',fontFamily:'var(--mono)',marginTop:3}}>{d.id} · {d.broker}</div></div>
+          <div style={{textAlign:'right'}}><div style={{fontFamily:'var(--mono)',fontWeight:700,fontSize:14,color:'var(--accent)'}}>{f$(d.amount)}</div><div style={{fontSize:10,color:'var(--text3)',fontFamily:'var(--mono)'}}>{fx(d.factor)} buy · 1.499x sell</div></div>
           <Pill status={d.status}/>
           {d.status==='offered'&&<button className="btn bp bs"><Ic n="send" s={12}/>Send</button>}
         </div>
       ))}
-      {!cd.length&&<div style={{textAlign:'center',padding:32,color:'var(--t3)'}}>No contracts yet</div>}
+      {!cd.length&&<div style={{textAlign:'center',padding:32,color:'var(--text3)'}}>No contracts yet</div>}
     </div>
   );
 }
@@ -552,17 +552,17 @@ function Contracts({deals,setSel}){
 function Alerts({deals}){
   const alerts=[];
   deals.forEach(d=>{
-    if(d.status==='underwriting')alerts.push({msg:d.business+' is ready for UW review',id:d.id,c:'var(--amb)'});
-    if(d.status==='offered')alerts.push({msg:'Offer ready to send — '+d.business,id:d.id,c:'var(--acc)'});
+    if(d.status==='underwriting')alerts.push({msg:d.business+' is ready for UW review',id:d.id,c:'var(--amber)'});
+    if(d.status==='offered')alerts.push({msg:'Offer ready to send — '+d.business,id:d.id,c:'var(--accent)'});
     if(d.monthlyRev&&d.monthlyRev<35000&&!['declined','funded'].includes(d.status))alerts.push({msg:d.business+' — revenue below $35k minimum',id:d.id,c:'var(--red)'});
   });
   return(
     <div className="fa">
       <div className="cd">
         <div className="sh" style={{marginBottom:16}}><div className="stitle">System Alerts</div><span className="tag" style={{background:'rgba(163,139,250,.12)',color:'var(--pur)',border:'1px solid rgba(163,139,250,.2)'}}>{alerts.length} active</span></div>
-        {!alerts.length?<div style={{textAlign:'center',padding:32,color:'var(--t3)'}}>No active alerts</div>:alerts.map((a,i)=>(
+        {!alerts.length?<div style={{textAlign:'center',padding:32,color:'var(--text3)'}}>No active alerts</div>:alerts.map((a,i)=>(
           <div key={i} className="uf" style={{marginBottom:8,borderColor:a.c+'33'}}>
-            <div style={{display:'flex',alignItems:'center',gap:8}}><Ic n="alerts" s={14} c={a.c}/><span style={{fontSize:12}}>{a.msg}</span><span style={{marginLeft:'auto',fontSize:10,color:'var(--t3)',fontFamily:'var(--mono)'}}>{a.id}</span></div>
+            <div style={{display:'flex',alignItems:'center',gap:8}}><Ic n="alerts" s={14} c={a.c}/><span style={{fontSize:12}}>{a.msg}</span><span style={{marginLeft:'auto',fontSize:10,color:'var(--text3)',fontFamily:'var(--mono)'}}>{a.id}</span></div>
           </div>
         ))}
       </div>
@@ -591,7 +591,7 @@ function DealDetail({deal,onClose,onUpdate,onDelete,onRefresh,notify,onOpenBroke
   if(deal.dailyBal&&deal.dailyBal<1000)flags.push({t:'red',x:'Daily balance below $1,000 minimum'});
   if(deal.monthlyRev&&deal.monthlyRev<35000)flags.push({t:'red',x:'Monthly revenue below $35,000 minimum'});
   if(!flags.length&&(deal.risk||0)>=65)flags.push({t:'green',x:'All checks passed — strong profile'});
-  const FC={red:'var(--red)',amber:'var(--amb)',green:'var(--grn)'};
+  const FC={red:'var(--red)',amber:'var(--amber)',green:'var(--green)'};
   const FB={red:'rgba(239,68,68,.08)',amber:'rgba(245,158,11,.08)',green:'rgba(16,185,129,.08)'};
   const FBD={red:'rgba(239,68,68,.2)',amber:'rgba(245,158,11,.2)',green:'rgba(16,185,129,.2)'};
   return(
@@ -599,7 +599,7 @@ function DealDetail({deal,onClose,onUpdate,onDelete,onRefresh,notify,onOpenBroke
       <div className="md md-lg fa">
         <div className="mh">
           <div>
-            <div style={{fontSize:10,fontFamily:'var(--mono)',color:'var(--t3)',marginBottom:4}}>{deal.id}{isToday(deal.submittedAt)&&<span style={{marginLeft:7,fontSize:9,background:'var(--grn)',color:'#fff',padding:'1px 5px',borderRadius:3}}>TODAY</span>}</div>
+            <div style={{fontSize:10,fontFamily:'var(--mono)',color:'var(--text3)',marginBottom:4}}>{deal.id}{isToday(deal.submittedAt)&&<span style={{marginLeft:7,fontSize:9,background:'var(--green)',color:'#fff',padding:'1px 5px',borderRadius:3}}>TODAY</span>}</div>
             <div className="mt">{deal.business}</div>
             <div className="ms">Broker: {deal.broker} · {deal.submitted}</div>
           </div>
@@ -620,27 +620,27 @@ function DealDetail({deal,onClose,onUpdate,onDelete,onRefresh,notify,onOpenBroke
           {deal.status==='declined'&&<div style={{marginBottom:14,padding:'9px 13px',background:'rgba(239,68,68,.08)',border:'1px solid rgba(239,68,68,.2)',borderRadius:8,fontSize:13,color:'var(--red)'}}>{(deal.uwNotes||[]).find(n=>n.cat==='risk')?.text?.slice(0,100)||'Deal declined — see notes for details'}</div>}
           {deal.amount&&(
             <div className="offerbox">
-              <div style={{fontSize:10,fontFamily:'var(--mono)',color:'var(--t3)',textTransform:'uppercase',letterSpacing:1,marginBottom:5}}>Approved Offer</div>
+              <div style={{fontSize:10,fontFamily:'var(--mono)',color:'var(--text3)',textTransform:'uppercase',letterSpacing:1,marginBottom:5}}>Approved Offer</div>
               <div style={{fontSize:32,fontWeight:700,fontFamily:'var(--mono)',letterSpacing:-1,color:'var(--t1)'}}>{f$(deal.amount)}</div>
               <div className="om">
                 {[{l:'Buy rate',v:fx(deal.factor)},{l:'Sell rate',v:'1.499x'},{l:'Term',v:(deal.termDays||'--')+' days'},{l:'Our profit',v:f$(deal.profit),g:true},{l:'Payback',v:f$(deal.payback)},{l:'Daily pmnt',v:f$(deal.payback&&deal.termDays?Math.round(deal.payback/deal.termDays):null)}].map((m,i)=>(
-                  <div key={i}><div className="oml">{m.l}</div><div className="omv" style={{color:m.g?'var(--grn)':'var(--t2)'}}>{m.v}</div></div>
+                  <div key={i}><div className="oml">{m.l}</div><div className="omv" style={{color:m.g?'var(--green)':'var(--t2)'}}>{m.v}</div></div>
                 ))}
               </div>
             </div>
           )}
           <div style={{display:'flex',borderBottom:'1px solid var(--b1)',marginBottom:14,overflowX:'auto'}}>
             {['overview','underwriting','notes','timeline'].map(t=>(
-              <div key={t} onClick={()=>setTab(t)} style={{padding:'7px 12px',fontSize:12,cursor:'pointer',borderBottom:tab===t?'2px solid var(--acc)':'2px solid transparent',color:tab===t?'var(--acc)':'var(--t3)',fontWeight:tab===t?600:400,whiteSpace:'nowrap',marginBottom:-1,textTransform:'capitalize',position:'relative'}}>
+              <div key={t} onClick={()=>setTab(t)} style={{padding:'7px 12px',fontSize:12,cursor:'pointer',borderBottom:tab===t?'2px solid var(--acc)':'2px solid transparent',color:tab===t?'var(--accent)':'var(--text3)',fontWeight:tab===t?600:400,whiteSpace:'nowrap',marginBottom:-1,textTransform:'capitalize',position:'relative'}}>
                 {t}{t==='notes'&&(deal.uwNotes||[]).length>0&&<span style={{position:'absolute',top:4,right:1,width:5,height:5,borderRadius:'50%',background:'var(--pur)',display:'block'}}/>}
               </div>
             ))}
           </div>
           {tab==='overview'&&(
             <div>
-              {!deal.amount&&<div style={{marginBottom:12,padding:'10px 12px',background:'var(--s3)',borderRadius:8,fontSize:13,color:'var(--t3)'}}>No offer yet — run AI scrubber to price this deal</div>}
+              {!deal.amount&&<div style={{marginBottom:12,padding:'10px 12px',background:'var(--s3)',borderRadius:8,fontSize:13,color:'var(--text3)'}}>No offer yet — run AI scrubber to price this deal</div>}
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:9}}>
-                {[{l:'Contact',v:deal.contact||'--'},{l:'Email',v:deal.email||'--',s:11},{l:'Requested',v:f$(deal.requested),m:true},{l:'Submitted',v:deal.submitted,m:true},{l:'Monthly Revenue',v:f$(deal.monthlyRev),m:true,c:deal.monthlyRev>=35000?'var(--grn)':deal.monthlyRev?'var(--red)':null},{l:'Avg Daily Balance',v:f$(deal.dailyBal),m:true,c:deal.dailyBal>=1000?'var(--grn)':deal.dailyBal?'var(--red)':null}].map((f,i)=>(
+                {[{l:'Contact',v:deal.contact||'--'},{l:'Email',v:deal.email||'--',s:11},{l:'Requested',v:f$(deal.requested),m:true},{l:'Submitted',v:deal.submitted,m:true},{l:'Monthly Revenue',v:f$(deal.monthlyRev),m:true,c:deal.monthlyRev>=35000?'var(--green)':deal.monthlyRev?'var(--red)':null},{l:'Avg Daily Balance',v:f$(deal.dailyBal),m:true,c:deal.dailyBal>=1000?'var(--green)':deal.dailyBal?'var(--red)':null}].map((f,i)=>(
                   <div key={i} className="uf"><div className="ul">{f.l}</div><div style={{fontSize:f.s||13,fontWeight:600,fontFamily:f.m?'var(--mono)':'inherit',color:f.c||'var(--t1)',wordBreak:'break-all'}}>{f.v}</div></div>
                 ))}
               </div>
@@ -654,13 +654,13 @@ function DealDetail({deal,onClose,onUpdate,onDelete,onRefresh,notify,onOpenBroke
                 {deal.risk!=null&&<div className="sbar" style={{height:7}}><div className="sfill" style={{width:deal.risk+'%',background:rc(deal.risk)}}/></div>}
               </div>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:9,marginBottom:12}}>
-                <div className="uf"><div className="ul">Positions</div><div style={{fontSize:13,fontWeight:700,color:deal.positions>=3?'var(--red)':deal.positions>=2?'var(--amb)':'var(--grn)'}}>{deal.positions} position{deal.positions!==1?'s':''}</div></div>
-                <div className="uf"><div className="ul">NY Courts</div><div style={{fontSize:13,fontWeight:700,color:deal.nyCourt==='clean'?'var(--grn)':'var(--red)'}}>{deal.nyCourt||'Pending'}</div></div>
-                <div className="uf"><div className="ul">DataMerch</div><div style={{fontSize:13,fontWeight:700,color:deal.dataMerch==='clean'?'var(--grn)':'var(--amb)'}}>{deal.dataMerch||'Pending'}</div></div>
-                <div className="uf"><div className="ul">Monthly Revenue</div><div style={{fontSize:13,fontWeight:700,fontFamily:'var(--mono)',color:deal.monthlyRev>=35000?'var(--grn)':deal.monthlyRev?'var(--red)':'inherit'}}>{f$(deal.monthlyRev)}</div></div>
+                <div className="uf"><div className="ul">Positions</div><div style={{fontSize:13,fontWeight:700,color:deal.positions>=3?'var(--red)':deal.positions>=2?'var(--amber)':'var(--green)'}}>{deal.positions} position{deal.positions!==1?'s':''}</div></div>
+                <div className="uf"><div className="ul">NY Courts</div><div style={{fontSize:13,fontWeight:700,color:deal.nyCourt==='clean'?'var(--green)':'var(--red)'}}>{deal.nyCourt||'Pending'}</div></div>
+                <div className="uf"><div className="ul">DataMerch</div><div style={{fontSize:13,fontWeight:700,color:deal.dataMerch==='clean'?'var(--green)':'var(--amber)'}}>{deal.dataMerch||'Pending'}</div></div>
+                <div className="uf"><div className="ul">Monthly Revenue</div><div style={{fontSize:13,fontWeight:700,fontFamily:'var(--mono)',color:deal.monthlyRev>=35000?'var(--green)':deal.monthlyRev?'var(--red)':'inherit'}}>{f$(deal.monthlyRev)}</div></div>
               </div>
               {flags.map((fl,i)=><div key={i} style={{padding:'8px 12px',borderRadius:8,background:FB[fl.t],borderLeft:'3px solid '+FC[fl.t],marginBottom:7,border:'1px solid '+FBD[fl.t]}}><span style={{fontSize:12,color:'var(--t2)'}}>{fl.x}</span></div>)}
-              {!flags.length&&deal.risk==null&&<div style={{textAlign:'center',padding:20,color:'var(--t3)',fontSize:13}}>Run AI scrubber to see underwriting analysis</div>}
+              {!flags.length&&deal.risk==null&&<div style={{textAlign:'center',padding:20,color:'var(--text3)',fontSize:13}}>Run AI scrubber to see underwriting analysis</div>}
             </div>
           )}
           {tab==='notes'&&(
@@ -668,15 +668,15 @@ function DealDetail({deal,onClose,onUpdate,onDelete,onRefresh,notify,onOpenBroke
               <div style={{marginBottom:12,padding:12,background:'var(--s2)',borderRadius:10,border:'1px solid var(--b2)'}}>
                 <div style={{fontSize:12,fontWeight:600,marginBottom:8,color:'var(--t1)'}}>Add underwriter note</div>
                 <div style={{display:'flex',gap:5,marginBottom:8,flexWrap:'wrap'}}>
-                  {['general','risk','approval','condition','followup'].map(c=><button key={c} onClick={()=>setNcat(c)} style={{padding:'2px 9px',borderRadius:20,fontSize:11,cursor:'pointer',border:'1px solid '+(ncat===c?NCC[c]:'var(--b3)'),background:ncat===c?NCC[c]+'22':'transparent',color:ncat===c?NCC[c]:'var(--t3)',transition:'all .15s',fontFamily:'var(--font)'}}>{c}</button>)}
+                  {['general','risk','approval','condition','followup'].map(c=><button key={c} onClick={()=>setNcat(c)} style={{padding:'2px 9px',borderRadius:20,fontSize:11,cursor:'pointer',border:'1px solid '+(ncat===c?NCC[c]:'var(--b3)'),background:ncat===c?NCC[c]+'22':'transparent',color:ncat===c?NCC[c]:'var(--text3)',transition:'all .15s',fontFamily:'var(--font)'}}>{c}</button>)}
                 </div>
                 <textarea className="fi" style={{minHeight:58,marginBottom:8}} placeholder="Add note..." value={note} onChange={e=>setNote(e.target.value)}/>
                 <button className="btn bp bs" onClick={saveNote} disabled={!note.trim()}><Ic n="check" s={12}/>Save Note</button>
               </div>
-              {!(deal.uwNotes||[]).length&&<div style={{textAlign:'center',padding:24,color:'var(--t3)'}}>No notes yet</div>}
+              {!(deal.uwNotes||[]).length&&<div style={{textAlign:'center',padding:24,color:'var(--text3)'}}>No notes yet</div>}
               {(deal.uwNotes||[]).slice().reverse().map(n=>(
                 <div key={n.id} className={'nc '+(n.cat||'general')}>
-                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}><span style={{fontSize:9,fontFamily:'var(--mono)',textTransform:'uppercase',fontWeight:700,color:NCC[n.cat]||'var(--t3)'}}>{n.cat}</span><span style={{fontSize:10,color:'var(--t3)',fontFamily:'var(--mono)'}}>{n.author} · {n.time}</span></div>
+                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}><span style={{fontSize:9,fontFamily:'var(--mono)',textTransform:'uppercase',fontWeight:700,color:NCC[n.cat]||'var(--text3)'}}>{n.cat}</span><span style={{fontSize:10,color:'var(--text3)',fontFamily:'var(--mono)'}}>{n.author} · {n.time}</span></div>
                   <div style={{fontSize:13,lineHeight:1.5,color:'var(--t2)'}}>{n.text}</div>
                 </div>
               ))}
@@ -684,11 +684,11 @@ function DealDetail({deal,onClose,onUpdate,onDelete,onRefresh,notify,onOpenBroke
           )}
           {tab==='timeline'&&(
             <div>
-              {[deal.submitted&&{t:deal.submitted,x:'Deal submitted from '+deal.broker,c:'var(--acc)'},deal.status!=='new'&&{t:deal.submitted,x:'AI scrubber triggered automatically',c:'var(--acc)'},deal.risk&&{t:deal.submitted,x:'Scrub complete · Risk: '+deal.risk+'/100 · Positions: '+deal.positions,c:deal.risk>=65?'var(--grn)':'var(--amb)'},deal.amount&&{t:deal.submitted,x:'Offer: '+f$(deal.amount)+' @ '+fx(deal.factor)+' · Profit: '+f$(deal.profit),c:'var(--grn)'},deal.status==='funded'&&{t:deal.funded||'',x:'Funded — ACH sent',c:'var(--grn)'},deal.status==='declined'&&{t:deal.submitted,x:'Deal declined',c:'var(--red)'},...(deal.uwNotes||[]).map(n=>({t:n.time,x:n.author+' — '+n.text.slice(0,80),c:NCC[n.cat]||'var(--t3)'}))].filter(Boolean).map((e,i,arr)=>(
+              {[deal.submitted&&{t:deal.submitted,x:'Deal submitted from '+deal.broker,c:'var(--accent)'},deal.status!=='new'&&{t:deal.submitted,x:'AI scrubber triggered automatically',c:'var(--accent)'},deal.risk&&{t:deal.submitted,x:'Scrub complete · Risk: '+deal.risk+'/100 · Positions: '+deal.positions,c:deal.risk>=65?'var(--green)':'var(--amber)'},deal.amount&&{t:deal.submitted,x:'Offer: '+f$(deal.amount)+' @ '+fx(deal.factor)+' · Profit: '+f$(deal.profit),c:'var(--green)'},deal.status==='funded'&&{t:deal.funded||'',x:'Funded — ACH sent',c:'var(--green)'},deal.status==='declined'&&{t:deal.submitted,x:'Deal declined',c:'var(--red)'},...(deal.uwNotes||[]).map(n=>({t:n.time,x:n.author+' — '+n.text.slice(0,80),c:NCC[n.cat]||'var(--text3)'}))].filter(Boolean).map((e,i,arr)=>(
                 <div key={i} style={{display:'flex',gap:11,paddingBottom:14,position:'relative'}}>
                   {i<arr.length-1&&<div style={{position:'absolute',left:9,top:20,width:2,height:'calc(100% - 8px)',background:'var(--b2)'}}/>}
                   <div style={{width:20,height:20,minWidth:20,borderRadius:'50%',background:e.c+'18',border:'1px solid '+e.c+'44',marginTop:1,zIndex:1,display:'flex',alignItems:'center',justifyContent:'center'}}><Ic n="check" s={10} c={e.c}/></div>
-                  <div><div style={{fontSize:12,fontWeight:500,color:'var(--t2)'}}>{e.x}</div><div style={{fontSize:10,color:'var(--t3)',fontFamily:'var(--mono)',marginTop:2}}>{e.t}</div></div>
+                  <div><div style={{fontSize:12,fontWeight:500,color:'var(--t2)'}}>{e.x}</div><div style={{fontSize:10,color:'var(--text3)',fontFamily:'var(--mono)',marginTop:2}}>{e.t}</div></div>
                 </div>
               ))}
             </div>
@@ -724,7 +724,7 @@ function BrokerView({deal,onClose,onSelect}){
     <div className="mo" onClick={onClose}>
       <div className="md md-lg fa" onClick={e=>e.stopPropagation()}>
         <div className="mh">
-          <div><div style={{fontSize:10,fontFamily:'var(--mono)',color:'var(--t3)',marginBottom:4}}>SECURE BROKER LINK · {deal.id}</div><div className="mt">Select an Offer</div><div className="ms">Review options for {deal.business}</div></div>
+          <div><div style={{fontSize:10,fontFamily:'var(--mono)',color:'var(--text3)',marginBottom:4}}>SECURE BROKER LINK · {deal.id}</div><div className="mt">Select an Offer</div><div className="ms">Review options for {deal.business}</div></div>
           <button className="btn bg bs" onClick={onClose}><Ic n="x" s={14}/></button>
         </div>
         <div className="mb">
@@ -737,24 +737,24 @@ function BrokerView({deal,onClose,onSelect}){
           ):(
             <>
               <div className="uf" style={{marginBottom:14,background:'rgba(245,158,11,.06)',borderColor:'rgba(245,158,11,.2)'}}>
-                <div style={{display:'flex',alignItems:'center',gap:8}}><Ic n="alerts" s={14} c="var(--amb)"/><span style={{fontSize:12,color:'var(--amb)'}}>This link is unique and secure. Once you select an offer, it cannot be changed.</span></div>
+                <div style={{display:'flex',alignItems:'center',gap:8}}><Ic n="alerts" s={14} c="var(--amb)"/><span style={{fontSize:12,color:'var(--amber)'}}>This link is unique and secure. Once you select an offer, it cannot be changed.</span></div>
               </div>
-              {!offers.length&&<div style={{textAlign:'center',padding:24,color:'var(--t3)'}}>No offer priced yet. Run AI scrubber first.</div>}
+              {!offers.length&&<div style={{textAlign:'center',padding:24,color:'var(--text3)'}}>No offer priced yet. Run AI scrubber first.</div>}
               {offers.map(o=>(
                 <div key={o.id} className={'oc'+(sel===o.id?' sel':'')} onClick={()=>setSel(o.id)}>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
                     <div className="oa">{f$(o.amount)}</div>
-                    <div style={{width:20,height:20,borderRadius:'50%',border:'2px solid '+(sel===o.id?'var(--acc)':'var(--b3)'),background:sel===o.id?'var(--acc)':'transparent',display:'flex',alignItems:'center',justifyContent:'center'}}>{sel===o.id&&<Ic n="check" s={12} c="#fff"/>}</div>
+                    <div style={{width:20,height:20,borderRadius:'50%',border:'2px solid '+(sel===o.id?'var(--accent)':'var(--b3)'),background:sel===o.id?'var(--accent)':'transparent',display:'flex',alignItems:'center',justifyContent:'center'}}>{sel===o.id&&<Ic n="check" s={12} c="#fff"/>}</div>
                   </div>
                   <div className="om">
                     {[{l:'Total Payback',v:f$(o.payback)},{l:'Factor Rate',v:fx(o.factor)},{l:'Term',v:o.termDays+' days'},{l:'Position',v:o.position},{l:'Daily Payment',v:f$(o.payback&&o.termDays?Math.round(o.payback/o.termDays):null),g:true},{l:'Orig. Fee',v:o.fee+'%'},{l:'Expires',v:o.expiry}].map((m,i)=>(
-                      <div key={i}><div className="oml">{m.l}</div><div className="omv" style={{color:m.g?'var(--grn)':'var(--t2)'}}>{m.v}</div></div>
+                      <div key={i}><div className="oml">{m.l}</div><div className="omv" style={{color:m.g?'var(--green)':'var(--t2)'}}>{m.v}</div></div>
                     ))}
                   </div>
                   {o.commissionPct&&(
                     <div style={{marginTop:12,padding:'10px 14px',background:'rgba(16,185,129,.08)',border:'1px solid rgba(16,185,129,.2)',borderRadius:8,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-                      <div style={{display:'flex',alignItems:'center',gap:6}}><Ic n="funded" s={14} c="var(--grn)"/><span style={{fontSize:12,fontWeight:600,color:'var(--grn)'}}>Your Commission</span></div>
-                      <div style={{textAlign:'right'}}><span style={{fontSize:18,fontWeight:700,color:'var(--grn)',fontFamily:'var(--mono)'}}>{f$(o.amount*o.commissionPct/100)}</span><span style={{fontSize:11,color:'var(--t2)',marginLeft:6}}>({o.commissionPct}%)</span></div>
+                      <div style={{display:'flex',alignItems:'center',gap:6}}><Ic n="funded" s={14} c="var(--grn)"/><span style={{fontSize:12,fontWeight:600,color:'var(--green)'}}>Your Commission</span></div>
+                      <div style={{textAlign:'right'}}><span style={{fontSize:18,fontWeight:700,color:'var(--green)',fontFamily:'var(--mono)'}}>{f$(o.amount*o.commissionPct/100)}</span><span style={{fontSize:11,color:'var(--t2)',marginLeft:6}}>({o.commissionPct}%)</span></div>
                     </div>
                   )}
                 </div>
@@ -782,7 +782,7 @@ function MerchantView({deal,onClose,onComplete}){
   return(
     <div className="mo" onClick={onClose}>
       <div className="md fa" onClick={e=>e.stopPropagation()}>
-        <div className="mh"><div><div style={{fontSize:10,fontFamily:'var(--mono)',color:'var(--t3)',marginBottom:4}}>MERCHANT ONBOARDING · {deal.id}</div><div className="mt">{deal.business}</div><div className="ms">Complete all steps to finalize your advance</div></div><button className="btn bg bs" onClick={onClose}><Ic n="x" s={14}/></button></div>
+        <div className="mh"><div><div style={{fontSize:10,fontFamily:'var(--mono)',color:'var(--text3)',marginBottom:4}}>MERCHANT ONBOARDING · {deal.id}</div><div className="mt">{deal.business}</div><div className="ms">Complete all steps to finalize your advance</div></div><button className="btn bg bs" onClick={onClose}><Ic n="x" s={14}/></button></div>
         <div className="mb">
           <div className="spr">{steps.map((st,i)=><div key={st} className={'spi'+(i<ms?' dn':i===ms?' av':'')}><div className="spd">{i<ms?<Ic n="check" s={11} c="#fff"/>:i+1}</div><div className="spl">{st}</div></div>)}</div>
           <div style={{textAlign:'center',padding:'24px 0'}}>
@@ -801,7 +801,7 @@ function UWModal({deal,onClose,onDecide}){
   return(
     <div className="mo" onClick={onClose}>
       <div className="md md-lg fa" onClick={e=>e.stopPropagation()}>
-        <div className="mh"><div><div style={{fontSize:10,fontFamily:'var(--mono)',color:'var(--t3)',marginBottom:4}}>FINAL UNDERWRITING · {deal.id}</div><div className="mt">{deal.business}</div><div className="ms">Review all data before making a decision</div></div><button className="btn bg bs" onClick={onClose}><Ic n="x" s={14}/></button></div>
+        <div className="mh"><div><div style={{fontSize:10,fontFamily:'var(--mono)',color:'var(--text3)',marginBottom:4}}>FINAL UNDERWRITING · {deal.id}</div><div className="mt">{deal.business}</div><div className="ms">Review all data before making a decision</div></div><button className="btn bg bs" onClick={onClose}><Ic n="x" s={14}/></button></div>
         <div className="mb">
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
             <div>
@@ -810,7 +810,7 @@ function UWModal({deal,onClose,onDecide}){
             </div>
             <div>
               {[{l:'Monthly Revenue',v:f$(deal.monthlyRev),ok:deal.monthlyRev>=35000,i:'funded'},{l:'Avg Daily Balance',v:f$(deal.dailyBal),ok:deal.dailyBal>=1000,i:'bank'},{l:'Positions',v:deal.positions+' position'+(deal.positions!==1?'s':''),ok:deal.positions<3,i:'filter'},{l:'NY Courts',v:deal.nyCourt||'Pending',ok:deal.nyCourt==='clean',i:'id'}].map(({l,v,ok,i})=>(
-                <div key={l} className="uf" style={{marginBottom:9}}><div className="ul">{l}</div><div style={{display:'flex',alignItems:'center',gap:8}}><Ic n={i} s={15} c={ok?'var(--grn)':'var(--t3)'}/><span style={{fontSize:13,fontWeight:600,color:ok?'var(--grn)':'var(--t2)'}}>{v}</span></div></div>
+                <div key={l} className="uf" style={{marginBottom:9}}><div className="ul">{l}</div><div style={{display:'flex',alignItems:'center',gap:8}}><Ic n={i} s={15} c={ok?'var(--green)':'var(--text3)'}/><span style={{fontSize:13,fontWeight:600,color:ok?'var(--green)':'var(--t2)'}}>{v}</span></div></div>
               ))}
             </div>
           </div>
@@ -844,7 +844,7 @@ function NewDealModal({onClose,onSave}){
           <div className="spr">{['Merchant Info','Broker Info','Submit'].map((s,i)=><div key={s} className={'spi'+(i<step?' dn':i===step?' av':'')}><div className="spd">{i<step?<Ic n="check" s={11} c="#fff"/>:i+1}</div><div className="spl">{s}</div></div>)}</div>
           {step===0&&<div className="fa"><div className="fg"><div className="ff"><label className="fl">Business Name *</label><input className="fi" placeholder="Acme Corp LLC" value={f.business} onChange={e=>set('business',e.target.value)}/></div><div className="ff"><label className="fl">Contact Name</label><input className="fi" placeholder="John Smith" value={f.contact} onChange={e=>set('contact',e.target.value)}/></div><div className="ff"><label className="fl">Contact Email</label><input className="fi" placeholder="john@business.com" value={f.email} onChange={e=>set('email',e.target.value)}/></div><div className="ff"><label className="fl">Amount Requested</label><input className="fi" type="number" placeholder="50000" value={f.requested} onChange={e=>set('requested',e.target.value)}/></div></div><div className="ff" style={{marginTop:4}}><label className="fl">Notes / Context</label><textarea className="fi" placeholder="Industry, positions, context..." value={f.notes} onChange={e=>set('notes',e.target.value)}/></div></div>}
           {step===1&&<div className="fa"><div className="ff" style={{marginBottom:12}}><label className="fl">Broker / ISO Name *</label><input className="fi" placeholder="Capital Partners LLC" value={f.broker} onChange={e=>set('broker',e.target.value)}/></div></div>}
-          {step===2&&<div className="fa"><div className="uf" style={{marginBottom:12}}><div className="ul">Summary</div><div style={{fontSize:15,fontWeight:700}}>{f.business}</div><div style={{fontSize:12,color:'var(--t2)',marginTop:3}}>Broker: {f.broker} · Requested: {f.requested?f$(parseInt(f.requested)):'TBD'}</div></div><p style={{fontSize:13,color:'var(--t3)'}}>Deal will be created in New status. Run AI Scrub after uploading bank statements.</p></div>}
+          {step===2&&<div className="fa"><div className="uf" style={{marginBottom:12}}><div className="ul">Summary</div><div style={{fontSize:15,fontWeight:700}}>{f.business}</div><div style={{fontSize:12,color:'var(--t2)',marginTop:3}}>Broker: {f.broker} · Requested: {f.requested?f$(parseInt(f.requested)):'TBD'}</div></div><p style={{fontSize:13,color:'var(--text3)'}}>Deal will be created in New status. Run AI Scrub after uploading bank statements.</p></div>}
         </div>
         <div className="mf">
           {step>0&&<button className="btn bg" onClick={()=>setStep(s=>s-1)}>Back</button>}
