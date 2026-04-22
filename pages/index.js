@@ -857,7 +857,12 @@ function NewDealModal({onClose,onSave}){
   );
 }
 
-ReactDOM.createRoot(document.getElementById('app-load')).render(React.createElement(App));
+// Create separate root div and mount app there
+const rootEl = document.createElement('div');
+rootEl.id = 'react-root';
+rootEl.style.cssText = 'position:fixed;inset:0;z-index:10';
+document.body.appendChild(rootEl);
+ReactDOM.createRoot(rootEl).render(React.createElement(App));
       `}</script>
     </>
   );
