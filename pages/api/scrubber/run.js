@@ -44,14 +44,23 @@ export default async function handler(req, res) {
     const parserNote = (deal.deal_notes || []).find(n => n.author === 'Document Parser' && n.body?.includes('Bank statement analysis'))
     const hasRealData = !!(parserNote || deal.monthly_revenue || deal.avg_daily_balance)
 
-    // No bank data - send to manual underwriting
+    // No bank data - check if it's missing docs or just failed parsing
     if (!hasRealData) {
-      await supabase.from('deals').update({ status: 'underwriting' }).eq('id', dealId)
-      await supabase.from('deal_notes').insert({
-        deal_id: dealId, author: 'AI Scrubber', category: 'system',
-        body: 'No bank statements found - sent to manual underwriting. Please review attachments and enter financial data manually.'
-      })
-      return res.json({ dealId, dealNumber: deal.deal_number, approved: null, decision: 'manual_review', status: 'underwriting' })
+      const { count: docCount } = await supabase
+        .from('documents').select('*', { count: 'exact', head: true })
+        .eq('deal_id', dealId).eq('doc_type', 'bank_statement')
+
+      if ((docCount || 0) === 0) {
+        // No documents at all - underwriting needed
+        await supabase.from('deals').update({ status: 'underwriting', updated_at: new Date().toISOString() }).eq('id', dealId)
+        await supabase.from('deal_notes').insert({ deal_id: dealId, author: 'AI Scrubber', category: 'system', body: 'Sent to underwriting — no bank statements attached. Contact broker for statements.' })
+        return res.json({ dealId, dealNumber: deal.deal_number, decision: 'manual_review', status: 'underwriting' })
+      } else {
+        // Has docs but parser failed - put on hold
+        await supabase.from('deals').update({ status: 'pending', updated_at: new Date().toISOString() }).eq('id', dealId)
+        await supabase.from('deal_notes').insert({ deal_id: dealId, author: 'AI Scrubber', category: 'system', body: 'HOLD — Bank statements attached but could not be parsed. Manual review needed.' })
+        return res.json({ dealId, dealNumber: deal.deal_number, decision: 'hold', status: 'pending' })
+      }
     }
 
     // STEP 3: Build data string for Claude
@@ -125,14 +134,34 @@ Return ONLY valid JSON:
   "summary": "<2 sentence summary>"
 }`
 
-    const response = await anthropic.messages.create({
+    let response
+    try {
+      response = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 1500,
       messages: [{ role: 'user', content: prompt }]
     })
 
-    const text = response.content[0].text.trim().replace(/```json\n?|\n?```/g, '').trim()
-    const a = JSON.parse(text)
+    } catch (apiErr) {
+      console.error('Claude API error for', deal.deal_number, apiErr.message)
+      await supabase.from('deals').update({ status: 'pending', updated_at: new Date().toISOString() }).eq('id', dealId)
+      await supabase.from('deal_notes').insert({ deal_id: dealId, author: 'AI Scrubber', category: 'system', body: 'HOLD — Claude API error: ' + apiErr.message.slice(0, 100) })
+      return res.json({ dealId, status: 'pending', error: apiErr.message })
+    }
+
+    let rawResponse = response.content[0].text.trim().replace(/```json\n?|\n?```/g, '').trim()
+    // Extract JSON if there's text around it
+    const jStart = rawResponse.indexOf('{')
+    const jEnd = rawResponse.lastIndexOf('}')
+    if (jStart >= 0 && jEnd >= 0) rawResponse = rawResponse.slice(jStart, jEnd + 1)
+    let a
+    try {
+      a = JSON.parse(rawResponse)
+    } catch (parseErr) {
+      await supabase.from('deals').update({ status: 'pending', updated_at: new Date().toISOString() }).eq('id', dealId)
+      await supabase.from('deal_notes').insert({ deal_id: dealId, author: 'AI Scrubber', category: 'system', body: 'HOLD — Could not parse scrubber response. Manual review needed.' })
+      return res.json({ dealId, status: 'pending', error: 'JSON parse failed' })
+    }
 
     // Auto decline prohibited or first position
     if (a.is_prohibited) { a.decision = 'decline'; a.decline_reason = 'Prohibited industry: ' + a.industry; a.approved_amount = null }
