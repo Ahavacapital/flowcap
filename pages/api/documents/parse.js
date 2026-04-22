@@ -91,12 +91,28 @@ Return ONLY valid JSON, no markdown:
 
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 1024,
-      messages: [{ role: 'user', content: messageContent }]
+      max_tokens: 1500,
+      messages: [
+        { role: 'user', content: messageContent },
+        { role: 'assistant', content: '{' }
+      ]
     })
 
-    const text = response.content[0].text.trim().replace(/```json\n?|\n?```/g, '').trim()
-    const extracted = JSON.parse(text)
+    const rawText = response.content[0].text.trim()
+    // Prepend the { we used to force JSON mode
+    const jsonText = '{' + rawText
+    let extracted
+    try {
+      extracted = JSON.parse(jsonText.replace(/```json\n?|\n?```/g, '').trim())
+    } catch (e) {
+      // Try to find JSON in the response
+      const match = jsonText.match(/\{[\s\S]+\}/)
+      if (match) {
+        extracted = JSON.parse(match[0])
+      } else {
+        throw new Error('Could not parse JSON from response: ' + rawText.slice(0, 100))
+      }
+    }
 
     // Update deal with extracted data
     const updates = { updated_at: new Date().toISOString() }
