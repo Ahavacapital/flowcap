@@ -9,14 +9,17 @@ export default async function handler(req, res) {
     const oauth2Client = new google.auth.OAuth2(process.env.GMAIL_CLIENT_ID, process.env.GMAIL_CLIENT_SECRET, 'https://developers.google.com/oauthplayground')
     oauth2Client.setCredentials({ refresh_token: process.env.GMAIL_REFRESH_TOKEN })
     const gmail = google.gmail({ version: 'v1', auth: oauth2Client })
-    const query = 'is:unread in:inbox to:' + process.env.GMAIL_USER_EMAIL + ' newer_than:30d -category:promotions -category:social -category:updates'
+    // Only pick up emails newer than our last processed deal (April 17 2026)
+    // This ensures we only process new submissions going forward
+    const query = 'is:unread in:inbox to:' + process.env.GMAIL_USER_EMAIL + ' after:2026/04/17 -category:promotions -category:social -category:updates'
     const { data: listData } = await gmail.users.messages.list({ userId: 'me', q: query, maxResults: 20 })
     const messages = listData.messages || []
     const results = []
     const internalDomains = ['yoyo.com', 'genesis.com', 'ahavacapital.com', 'ahava.com']
     const spamDomains = ['canva.com', 'streak.com', 'linkedin.com', 'google.com', 'facebook.com', 'mailchimp.com', 'sendgrid.net', 'hubspot.com', 'noreply', 'no-reply', 'donotreply']
     const skipSubjects = ['unsubscribe', 'newsletter', 'password reset', 'invoice for', 'receipt for', 'webinar', 'out of office', 'auto-reply', 'delivery failed']
-    const dealKeywords = ['fw:', 'fwd:', 'new deal', 'new submission', 'new application', 'submission', 'application', 'merchant', 'llc', 'inc', 'corp', 'co.', 'dba', 'restaurant', 'construction', 'trucking', 'medical', 'dental', 'salon', 'auto', 'repair', 'catering', 'services', 'group', 'associates', 'enterprises', 'solutions', 'management', 'grill', 'cafe', 'hotel', 'gym', 'fitness', 'plumbing', 'electric', 'hvac', 'roofing', 'landscaping']
+    // Broad keyword list - if it passes spam/internal checks and has any business-like content, take it
+    const dealKeywords = ['fw:', 'fwd:', 're:', 'new deal', 'new submission', 'new application', 'submission', 'application', 'merchant', 'funding', 'advance', 'mca', 'business', 'llc', 'inc', 'corp', 'co.', 'dba', 'restaurant', 'construction', 'trucking', 'medical', 'dental', 'salon', 'auto', 'repair', 'catering', 'services', 'group', 'associates', 'enterprises', 'solutions', 'management', 'grill', 'cafe', 'hotel', 'gym', 'fitness', 'plumbing', 'electric', 'hvac', 'roofing', 'landscaping', 'deal', 'file', 'client', 'referral', 'package', 'docs', 'statement', 'renewal']
     const appUrl = process.env.NEXTAUTH_URL || 'https://flowcap-mca.vercel.app'
 
     for (const msg of messages) {
@@ -45,8 +48,9 @@ export default async function handler(req, res) {
           results.push({ messageId: msg.id, status: 'skipped', reason: 'non-deal subject' }); continue
         }
         if (!dealKeywords.some(k => sl.includes(k))) {
-          await gmail.users.messages.modify({ userId: 'me', id: msg.id, requestBody: { removeLabelIds: ['UNREAD'] } })
-          results.push({ messageId: msg.id, status: 'skipped', reason: 'no deal keywords' }); continue
+          // Don't mark as read - log it so we can review
+          console.log('Skipping email - no deal keywords in subject:', subject, 'from:', fromEmail)
+          results.push({ messageId: msg.id, status: 'skipped', reason: 'no deal keywords', subject, from: fromEmail }); continue
         }
         const businessName = subject.replace(/^FW:\s*/i,'').replace(/^FWD:\s*/i,'').replace(/^RE:\s*/i,'').replace(/^NEW DEAL\s*[-:]\s*/i,'').replace(/^New Submission\s*[-:]\s*/i,'').replace(/^New Application\s*[-:]\s*/i,'').replace(/^Submission\s*[-:]\s*/i,'').trim() || 'Unknown Business'
         const { count } = await supabase.from('deals').select('*', { count: 'exact', head: true })
