@@ -146,9 +146,9 @@ export default function Home() {
         </div>
         <div style={{fontSize:10,color:'#5a6480',letterSpacing:'1.5px',textTransform:'uppercase',fontFamily:"'JetBrains Mono',monospace"}}>Loading deals...</div>
       </div>
-      <script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js" defer></script>
-      <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js" defer></script>
-      <script src="https://unpkg.com/@babel/standalone@7.23.0/babel.min.js" defer></script>
+      <script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+      <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+      <script src="https://unpkg.com/@babel/standalone@7.23.0/babel.min.js"></script>
       <script type="text/babel" data-type="module">{`
 const {useState,useEffect,useCallback,useRef}=React;
 
