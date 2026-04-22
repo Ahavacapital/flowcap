@@ -78,12 +78,14 @@ export default async function handler(req, res) {
           } catch (e) { console.error('Parse failed:', e.message) }
         }
 
-        // Step 3: Run scrubber (fire and forget - don't block response)
-        fetch(appUrl + '/api/scrubber/run', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ dealId: deal.id })
-        }).catch(e => console.error('Scrub failed:', e.message))
+        // Step 3: Run scrubber after 3 second delay to let parser save data
+        setTimeout(() => {
+          fetch(appUrl + '/api/scrubber/run', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dealId: deal.id })
+          }).catch(e => console.error('Scrub failed:', e.message))
+        }, 3000)
 
         results.push({ messageId: msg.id, dealNumber, businessName, from: fromEmail, broker: broker?.name || 'Unknown', attachmentsSaved: saved, hasBankStatements, status: 'created' })
 
