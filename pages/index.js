@@ -62,7 +62,9 @@ export default function App(){
   const tf=funded.reduce((s,d)=>s+(d.amount||0),0)
   const tp=deals.reduce((s,d)=>s+(d.profit||0),0)
 
-  const NAV=[{id:'dashboard',l:'Dashboard'},{id:'deals',l:'All Deals',b:todayCnt||null},{id:'pipeline',l:'Pipeline',b:active.length||null},{id:'uwqueue',l:'UW Queue',b:uwCount||null},{id:'brokers',l:'Brokers'},{id:'contracts',l:'Contracts'}]
+  const alertCount=deals.filter(d=>['underwriting','pending','offered'].includes(d.status)).length
+  const renewalCount=deals.filter(d=>d.status==='funded'&&d.balance&&d.amount&&(d.balance/d.amount)<=0.5).length
+  const NAV=[{id:'dashboard',l:'Dashboard'},{id:'deals',l:'All Deals',b:todayCnt||null},{id:'pipeline',l:'Pipeline',b:active.length||null},{id:'uwqueue',l:'UW Queue',b:uwCount||null},{id:'brokers',l:'Brokers / ISO'},{id:'contracts',l:'Contracts'},{id:'renewals',l:'Renewals',b:renewalCount||null},{id:'alerts',l:'Alerts',b:alertCount||null}]
 
   const css=`
     *{margin:0;padding:0;box-sizing:border-box}
@@ -116,7 +118,7 @@ export default function App(){
         {/* MAIN */}
         <div style={{flex:1,minWidth:0,height:'100%',overflow:'hidden',display:'flex',flexDirection:'column'}}>
           <div style={{padding:'0 22px',height:52,minHeight:52,flexShrink:0,borderBottom:'1px solid #e5e7eb',display:'flex',alignItems:'center',gap:10,background:'#fff'}}>
-            <div style={{fontSize:14,fontWeight:600,flex:1,color:'#111827'}}>{{dashboard:'Dashboard',deals:'All Deals',pipeline:'Pipeline',uwqueue:'UW Queue',brokers:'Brokers / ISO',contracts:'Contracts'}[pg]||pg}</div>
+            <div style={{fontSize:14,fontWeight:600,flex:1,color:'#111827'}}>{{dashboard:'Dashboard',deals:'All Deals',pipeline:'Pipeline',uwqueue:'UW Queue',brokers:'Brokers / ISO',contracts:'Contracts',renewals:'Renewals',alerts:'Alerts'}[pg]||pg}</div>
             {todayCnt>0&&<span style={{fontSize:11,color:'#16a34a',background:'rgba(22,163,74,.1)',border:'1px solid rgba(22,163,74,.2)',padding:'2px 8px',borderRadius:10,fontFamily:'JetBrains Mono,monospace'}}>{todayCnt} new today</span>}
             <div style={{display:'flex',gap:7}}>
               <Btn sm sec onClick={loadDeals}>Refresh</Btn>
@@ -131,6 +133,8 @@ export default function App(){
             {pg==='uwqueue'&&<UWQueue deals={deals} setSel={setSel}/>}
             {pg==='brokers'&&<Brokers deals={deals}/>}
             {pg==='contracts'&&<Contracts deals={deals} setSel={setSel}/>}
+            {pg==='renewals'&&<Renewals deals={deals} setSel={setSel}/>}
+            {pg==='alerts'&&<Alerts deals={deals} setSel={setSel}/>}
           </div>
         </div>
       </div>
@@ -171,36 +175,130 @@ function Dashboard({deals,setPg,setSel,tf,tp,funded,todayCnt}){
   const closed=deals.filter(d=>['funded','declined'].includes(d.status))
   const apr=closed.length>0?Math.round(funded.length/closed.length*100):0
   const today=deals.filter(d=>isToday(d.submittedAt))
+  const offered=deals.filter(d=>d.status==='offered')
+  const pending=deals.filter(d=>d.status==='pending')
+  const uw=deals.filter(d=>d.status==='underwriting')
+  const pipeline=['new','scrubbing','underwriting','pending','offered','docs','contracts','bankverify']
+  const th={textAlign:'left',padding:'7px 10px',fontSize:10,color:'#9ca3af',textTransform:'uppercase',letterSpacing:'.8px',borderBottom:'1px solid #f1f4f9',fontWeight:600,fontFamily:'JetBrains Mono,monospace'}
+  const td={padding:'10px 10px'}
   return(
     <div>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:20}}>
-        <Stat label="Funded (all time)" value={f$(tf)} sub={funded.length+' deals'} color="#16a34a"/>
-        <Stat label="Active Pipeline" value={deals.filter(d=>!['funded','declined'].includes(d.status)).length} sub={todayCnt+' new today'}/>
-        <Stat label="Total Profit" value={f$(tp)} sub="buy/sell spread" color="#6366f1"/>
-        <Stat label="Approval Rate" value={apr+'%'} sub={declined+' declined'}/>
+      {/* TOP STATS */}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:10,marginBottom:16}}>
+        <Stat label="Total Submissions" value={deals.length} sub={'all time'}/>
+        <Stat label="Active Pipeline" value={deals.filter(d=>!['funded','declined'].includes(d.status)).length} sub={todayCnt+' new today'} color="#6366f1"/>
+        <Stat label="Offered" value={offered.length} sub={'ready for contracts'} color="#10b981"/>
+        <Stat label="Funded Volume" value={f$(tf)} sub={funded.length+' deals'} color="#16a34a"/>
+        <Stat label="Total Profit" value={f$(tp)} sub={apr+'% approval rate'} color="#6366f1"/>
       </div>
-      {today.length>0&&<div style={{marginBottom:16,padding:'10px 14px',background:'rgba(22,163,74,.05)',border:'1px solid rgba(22,163,74,.2)',borderRadius:10,display:'flex',alignItems:'center',gap:10}}><span style={{width:7,height:7,borderRadius:'50%',background:'#16a34a',display:'block',flexShrink:0}}/><div style={{flex:1,fontSize:13}}><span style={{fontWeight:600,color:'#16a34a'}}>{today.length} new today: </span><span style={{color:'#9ca3af'}}>{today.slice(0,3).map(d=>d.business).join(', ')}{today.length>3?' ...':''}</span></div><Btn sm sec onClick={()=>setPg('deals')}>View All</Btn></div>}
-      <div style={{display:'grid',gridTemplateColumns:'1fr 260px',gap:14}}>
+
+      {/* NEW TODAY BANNER */}
+      {today.length>0&&<div style={{marginBottom:14,padding:'10px 14px',background:'rgba(22,163,74,.05)',border:'1px solid rgba(22,163,74,.2)',borderRadius:10,display:'flex',alignItems:'center',gap:10}}>
+        <span style={{width:7,height:7,borderRadius:'50%',background:'#16a34a',display:'block',flexShrink:0}}/>
+        <div style={{flex:1,fontSize:13}}><span style={{fontWeight:600,color:'#16a34a'}}>{today.length} new submission{today.length!==1?'s':''} today: </span><span style={{color:'#9ca3af'}}>{today.slice(0,4).map(d=>d.business).join(', ')}{today.length>4?' ...':''}</span></div>
+        <Btn sm sec onClick={()=>setPg('deals')}>View All</Btn>
+      </div>}
+
+      {/* ALERTS ROW */}
+      {(offered.length>0||pending.length>0)&&<div style={{display:'flex',gap:10,marginBottom:14,flexWrap:'wrap'}}>
+        {offered.length>0&&<div style={{flex:1,minWidth:200,padding:'10px 14px',background:'rgba(16,185,129,.06)',border:'1px solid rgba(16,185,129,.2)',borderRadius:10,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <div><div style={{fontSize:12,fontWeight:600,color:'#10b981'}}>🟢 {offered.length} deal{offered.length!==1?'s':''} ready to fund</div><div style={{fontSize:11,color:'#9ca3af',marginTop:2}}>Offers sent — awaiting contract signature</div></div>
+          <Btn sm onClick={()=>setPg('contracts')}>Send Contracts</Btn>
+        </div>}
+        {pending.length>0&&<div style={{flex:1,minWidth:200,padding:'10px 14px',background:'rgba(236,72,153,.06)',border:'1px solid rgba(236,72,153,.2)',borderRadius:10,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <div><div style={{fontSize:12,fontWeight:600,color:'#ec4899'}}>⏸ {pending.length} deal{pending.length!==1?'s':''} on hold</div><div style={{fontSize:11,color:'#9ca3af',marginTop:2}}>Parser issues — manual review needed</div></div>
+          <Btn sm sec onClick={()=>setPg('uwqueue')}>Review</Btn>
+        </div>}
+        {uw.length>0&&<div style={{flex:1,minWidth:200,padding:'10px 14px',background:'rgba(245,158,11,.06)',border:'1px solid rgba(245,158,11,.2)',borderRadius:10,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <div><div style={{fontSize:12,fontWeight:600,color:'#d97706'}}>👁 {uw.length} in underwriting</div><div style={{fontSize:11,color:'#9ca3af',marginTop:2}}>Awaiting manual review or statements</div></div>
+          <Btn sm sec onClick={()=>setPg('uwqueue')}>View Queue</Btn>
+        </div>}
+      </div>}
+
+      {/* MAIN CONTENT GRID */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14,marginBottom:14}}>
+        {/* WORKFLOW PIPELINE */}
         <Card>
-          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}><div style={{fontSize:14,fontWeight:700}}>Recent Deals</div><Btn sm sec onClick={()=>setPg('deals')}>View All</Btn></div>
-          <table style={{width:'100%',borderCollapse:'collapse'}}>
-            <thead><tr>{['Business','Broker','Amount','Status','Risk','Profit'].map(h=><th key={h} style={{textAlign:'left',padding:'7px 10px',fontSize:10,color:'#9ca3af',textTransform:'uppercase',letterSpacing:'.8px',borderBottom:'1px solid #f1f4f9',fontWeight:600,fontFamily:'JetBrains Mono,monospace'}}>{h}</th>)}</tr></thead>
-            <tbody>{deals.slice(0,8).map(d=>(
-              <tr key={d.id} onClick={()=>setSel(d)} style={{cursor:'pointer'}} onMouseEnter={e=>e.currentTarget.style.background='#f9fafb'} onMouseLeave={e=>e.currentTarget.style.background=''}>
-                <td style={{padding:'10px 10px'}}><div style={{display:'flex',alignItems:'center',gap:5}}>{isToday(d.submittedAt)&&<span style={{width:5,height:5,borderRadius:'50%',background:'#16a34a',display:'block',flexShrink:0}}/>}<div><div style={{fontWeight:600,maxWidth:140,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',fontSize:13}}>{d.business}</div><div style={{fontSize:10,color:'#9ca3af',fontFamily:'JetBrains Mono,monospace'}}>{d.id}</div></div></div></td>
-                <td style={{padding:'10px 10px',fontSize:12,color:'#6b7280',maxWidth:110,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{d.broker}</td>
-                <td style={{padding:'10px 10px',fontFamily:'JetBrains Mono,monospace',fontSize:12,color:d.amount?'#6366f1':'#9ca3af',fontWeight:600}}>{d.amount?f$(d.amount):f$(d.requested)}</td>
-                <td style={{padding:'10px 10px'}}><StatusPill status={d.status}/></td>
-                <td style={{padding:'10px 10px'}}>{d.risk!=null?<span style={{fontSize:12,fontFamily:'JetBrains Mono,monospace',fontWeight:700,color:rc(d.risk)}}>{d.risk}</span>:'--'}</td>
-                <td style={{padding:'10px 10px',fontFamily:'JetBrains Mono,monospace',fontSize:12,color:d.profit?'#16a34a':'#9ca3af',fontWeight:600}}>{d.profit?f$(d.profit):'--'}</td>
-              </tr>
-            ))}</tbody>
-          </table>
+          <div style={{fontSize:13,fontWeight:700,marginBottom:12}}>Workflow Pipeline</div>
+          {pipeline.map(s=>{
+            const cnt=deals.filter(d=>d.status===s).length
+            const total=deals.length||1
+            const pct=Math.round(cnt/total*100)
+            return(
+              <div key={s} style={{marginBottom:8}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:3}}>
+                  <StatusPill status={s}/>
+                  <span style={{fontSize:12,fontFamily:'JetBrains Mono,monospace',fontWeight:700,color:'#374151'}}>{cnt}</span>
+                </div>
+                <div style={{height:4,background:'#f1f4f9',borderRadius:2,overflow:'hidden'}}>
+                  <div style={{height:'100%',width:pct+'%',background:SC[s]||'#e5e7eb',borderRadius:2,opacity:.7}}/>
+                </div>
+              </div>
+            )
+          })}
         </Card>
-        <div style={{display:'flex',flexDirection:'column',gap:12}}>
-          <Card><div style={{fontSize:13,fontWeight:700,marginBottom:10}}>Pipeline</div>{['new','scrubbing','underwriting','pending','offered','contracts','bankverify'].map(s=>{const cnt=deals.filter(d=>d.status===s).length;if(!cnt)return null;return<div key={s} style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:7}}><StatusPill status={s}/><span style={{fontSize:13,fontFamily:'JetBrains Mono,monospace',fontWeight:700}}>{cnt}</span></div>})}</Card>
-          <Card><div style={{fontSize:13,fontWeight:700,marginBottom:10}}>Automation</div>{[{l:'Gmail watcher',s:'Every 5 min'},{l:'AI scrubber',s:'Every 3 min'},{l:'Sheets sync',s:'Every 15 min'},{l:'Doc parser',s:'Auto on new deals'}].map((i,x)=><div key={x} style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}><span style={{width:6,height:6,borderRadius:'50%',background:'#16a34a',display:'block',flexShrink:0}}/><div><div style={{fontSize:12,fontWeight:600}}>{i.l}</div><div style={{fontSize:11,color:'#9ca3af'}}>{i.s}</div></div></div>)}</Card>
-        </div>
+
+        {/* RECENT ACTIVITY */}
+        <Card>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
+            <div style={{fontSize:13,fontWeight:700}}>Recent Submissions</div>
+            <Btn sm sec onClick={()=>setPg('deals')}>View All</Btn>
+          </div>
+          {deals.slice(0,6).map(d=>(
+            <div key={d.id} onClick={()=>setSel(d)} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:'1px solid #f9fafb',cursor:'pointer'}} onMouseEnter={e=>e.currentTarget.style.background='#fafafa'} onMouseLeave={e=>e.currentTarget.style.background=''}>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{display:'flex',alignItems:'center',gap:5}}>
+                  {isToday(d.submittedAt)&&<span style={{width:5,height:5,borderRadius:'50%',background:'#16a34a',display:'block',flexShrink:0}}/>}
+                  <div style={{fontWeight:600,fontSize:13,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{d.business}</div>
+                </div>
+                <div style={{fontSize:11,color:'#9ca3af',fontFamily:'JetBrains Mono,monospace'}}>{d.id} · {d.broker}</div>
+              </div>
+              <div style={{textAlign:'right',flexShrink:0}}>
+                <div style={{fontFamily:'JetBrains Mono,monospace',fontSize:12,fontWeight:600,color:d.amount?'#6366f1':'#9ca3af'}}>{d.amount?f$(d.amount):f$(d.requested)}</div>
+                <StatusPill status={d.status}/>
+              </div>
+            </div>
+          ))}
+        </Card>
+      </div>
+
+      {/* BOTTOM ROW */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
+        {/* TOP BROKERS */}
+        <Card>
+          <div style={{fontSize:13,fontWeight:700,marginBottom:12}}>Top Brokers / ISO</div>
+          {(()=>{
+            const bmap={}
+            deals.forEach(d=>{if(!d.broker||d.broker==='Unknown')return;if(!bmap[d.broker])bmap[d.broker]={name:d.broker,total:0,funded:0,volume:0};bmap[d.broker].total++;if(d.status==='funded'){bmap[d.broker].funded++;bmap[d.broker].volume+=d.amount||0}})
+            return Object.values(bmap).sort((a,b)=>b.total-a.total).slice(0,5).map((b,i)=>(
+              <div key={b.name} style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
+                <div style={{width:22,height:22,borderRadius:'50%',background:'linear-gradient(135deg,#6366f1,#a78bfa)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,color:'#fff',flexShrink:0}}>{i+1}</div>
+                <div style={{flex:1,minWidth:0}}><div style={{fontSize:13,fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{b.name}</div><div style={{fontSize:11,color:'#9ca3af'}}>{b.total} deals · {b.funded} funded</div></div>
+                <div style={{fontSize:12,fontFamily:'JetBrains Mono,monospace',fontWeight:600,color:'#16a34a'}}>{f$(b.volume)}</div>
+              </div>
+            ))
+          })()}
+        </Card>
+
+        {/* AUTOMATION STATUS */}
+        <Card>
+          <div style={{fontSize:13,fontWeight:700,marginBottom:12}}>Automation Status</div>
+          {[
+            {l:'Gmail watcher',s:'Picks up new submissions every 5 min',ok:true},
+            {l:'Document parser',s:'Reads bank statements automatically',ok:true},
+            {l:'AI scrubber',s:'Underwrites each deal independently',ok:true},
+            {l:'Google Sheets sync',s:'Updates CRM sheet every 15 min',ok:true},
+            {l:'DocuSign',s:'Contract signing — setup needed',ok:false},
+            {l:'NY Courts API',s:'Background check — stub only',ok:false},
+            {l:'DataMerch API',s:'MCA history check — stub only',ok:false},
+          ].map((i,x)=>(
+            <div key={x} style={{display:'flex',alignItems:'center',gap:10,marginBottom:9}}>
+              <span style={{width:7,height:7,borderRadius:'50%',background:i.ok?'#16a34a':'#e5e7eb',display:'block',flexShrink:0,border:i.ok?'none':'2px solid #d1d5db'}}/>
+              <div style={{flex:1}}><div style={{fontSize:12,fontWeight:600,color:i.ok?'#111827':'#9ca3af'}}>{i.l}</div><div style={{fontSize:11,color:'#9ca3af'}}>{i.s}</div></div>
+              <span style={{fontSize:10,fontWeight:600,color:i.ok?'#16a34a':'#d1d5db',fontFamily:'JetBrains Mono,monospace'}}>{i.ok?'LIVE':'PENDING'}</span>
+            </div>
+          ))}
+        </Card>
       </div>
     </div>
   )
@@ -532,6 +630,153 @@ function DealDetail({deal,onClose,onUpdate,onDelete,onRefresh,notify}){
         </div>
       </div>
     </div>
+  )
+}
+
+
+
+// ─── RENEWALS ─────────────────────────────────────────────────────────────────
+function Renewals({deals,setSel}){
+  const funded=deals.filter(d=>d.status==='funded')
+
+  // Calculate renewal eligibility for each funded deal
+  const withRenewal=funded.map(d=>{
+    const paidPct=d.amount&&d.balance?Math.round((1-d.balance/d.amount)*100):0
+    const eligible=paidPct>=50
+    // Days since funded - estimate from submitted date if no funded date
+    const fundedDate=d.funded?new Date(d.funded):new Date(d.submittedAt)
+    const daysSinceFunded=Math.round((new Date()-fundedDate)/86400000)
+    // Renewal offer = same factor, same term, slightly lower amount as reward
+    const renewalAmount=d.amount?Math.round(d.amount*1.1/1000)*1000:null // 10% more than original
+    const renewalPayback=renewalAmount?Math.round(renewalAmount*1.499):null
+    const renewalProfit=renewalAmount&&d.factor?Math.round(renewalAmount*(1.499-d.factor)):null
+    return{...d,paidPct,eligible,daysSinceFunded,renewalAmount,renewalPayback,renewalProfit}
+  }).sort((a,b)=>b.paidPct-a.paidPct)
+
+  const eligible=withRenewal.filter(d=>d.eligible)
+  const notYet=withRenewal.filter(d=>!d.eligible)
+
+  return(
+    <div>
+      {/* STATS */}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:16}}>
+        <Stat label="Funded Deals" value={funded.length} sub="total portfolio"/>
+        <Stat label="Renewal Eligible" value={eligible.length} sub="50%+ paid" color="#16a34a"/>
+        <Stat label="Potential Volume" value={f$(eligible.reduce((s,d)=>s+(d.renewalAmount||0),0))} sub="if all renew" color="#6366f1"/>
+        <Stat label="Potential Profit" value={f$(eligible.reduce((s,d)=>s+(d.renewalProfit||0),0))} sub="renewal spread" color="#10b981"/>
+      </div>
+
+      {/* ELIGIBLE NOW */}
+      {eligible.length>0&&(
+        <div style={{marginBottom:16}}>
+          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+            <div style={{fontSize:14,fontWeight:700}}>🟢 Eligible for Renewal ({eligible.length})</div>
+            <span style={{fontSize:11,color:'#16a34a',background:'rgba(22,163,74,.1)',border:'1px solid rgba(22,163,74,.2)',padding:'2px 8px',borderRadius:10,fontFamily:'JetBrains Mono,monospace'}}>50%+ paid</span>
+          </div>
+          {eligible.map(d=>(
+            <div key={d.id} style={{background:'#fff',border:'1px solid #e5e7eb',borderRadius:12,padding:'14px 16px',marginBottom:10,cursor:'pointer'}} onClick={()=>setSel(d)} onMouseEnter={e=>e.currentTarget.style.borderColor='#16a34a'} onMouseLeave={e=>e.currentTarget.style.borderColor='#e5e7eb'}>
+              <div style={{display:'flex',alignItems:'flex-start',gap:14}}>
+                <div style={{flex:1}}>
+                  <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4}}>
+                    <div style={{fontSize:14,fontWeight:700}}>{d.business}</div>
+                    <span style={{fontSize:10,color:'#16a34a',background:'rgba(22,163,74,.1)',border:'1px solid rgba(22,163,74,.2)',padding:'1px 7px',borderRadius:10,fontFamily:'JetBrains Mono,monospace',fontWeight:600}}>RENEWAL READY</span>
+                  </div>
+                  <div style={{fontSize:11,color:'#9ca3af',fontFamily:'JetBrains Mono,monospace',marginBottom:10}}>{d.id} · {d.broker} · Funded: {d.funded||d.submitted}</div>
+
+                  {/* Progress bar */}
+                  <div style={{marginBottom:8}}>
+                    <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}>
+                      <span style={{fontSize:11,color:'#6b7280'}}>Payback progress</span>
+                      <span style={{fontSize:11,fontWeight:700,color:'#16a34a',fontFamily:'JetBrains Mono,monospace'}}>{d.paidPct}% paid</span>
+                    </div>
+                    <div style={{height:6,background:'#f1f4f9',borderRadius:3,overflow:'hidden'}}>
+                      <div style={{height:'100%',width:d.paidPct+'%',background:'linear-gradient(90deg,#16a34a,#10b981)',borderRadius:3}}/>
+                    </div>
+                    <div style={{display:'flex',justifyContent:'space-between',marginTop:2}}>
+                      <span style={{fontSize:10,color:'#9ca3af'}}>Original: {f$(d.amount)}</span>
+                      <span style={{fontSize:10,color:'#9ca3af'}}>Balance: {f$(d.balance)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Renewal offer box */}
+                <div style={{background:'linear-gradient(135deg,rgba(99,102,241,.06),rgba(16,185,129,.04))',border:'1px solid rgba(99,102,241,.2)',borderRadius:10,padding:'12px 14px',minWidth:200,flexShrink:0}}>
+                  <div style={{fontSize:10,color:'#9ca3af',textTransform:'uppercase',letterSpacing:1,fontFamily:'JetBrains Mono,monospace',marginBottom:4}}>Renewal Offer</div>
+                  <div style={{fontSize:22,fontWeight:700,fontFamily:'JetBrains Mono,monospace',color:'#111827'}}>{f$(d.renewalAmount)}</div>
+                  <div style={{display:'flex',gap:12,marginTop:8,flexWrap:'wrap'}}>
+                    <div><div style={{fontSize:10,color:'#9ca3af'}}>Factor</div><div style={{fontSize:12,fontWeight:600,fontFamily:'JetBrains Mono,monospace'}}>{d.factor?d.factor.toFixed(3)+'x':'--'}</div></div>
+                    <div><div style={{fontSize:10,color:'#9ca3af'}}>Sell rate</div><div style={{fontSize:12,fontWeight:600,fontFamily:'JetBrains Mono,monospace'}}>1.499x</div></div>
+                    <div><div style={{fontSize:10,color:'#9ca3af'}}>Our profit</div><div style={{fontSize:12,fontWeight:700,fontFamily:'JetBrains Mono,monospace',color:'#16a34a'}}>{f$(d.renewalProfit)}</div></div>
+                  </div>
+                  <div style={{marginTop:10,display:'flex',gap:6}}>
+                    <button onClick={e=>{e.stopPropagation();alert('Send renewal offer to '+d.broker+' for '+d.business)}} style={{flex:1,padding:'5px 0',borderRadius:6,background:'#6366f1',color:'#fff',border:'none',fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:'Inter,sans-serif'}}>Send Offer</button>
+                    <button onClick={e=>{e.stopPropagation();setSel(d)}} style={{padding:'5px 10px',borderRadius:6,background:'#f9fafb',color:'#6b7280',border:'1px solid #e5e7eb',fontSize:11,cursor:'pointer',fontFamily:'Inter,sans-serif'}}>View</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* NOT YET ELIGIBLE */}
+      {notYet.length>0&&(
+        <div>
+          <div style={{fontSize:14,fontWeight:700,marginBottom:10,color:'#6b7280'}}>⏳ Not Yet Eligible ({notYet.length})</div>
+          {notYet.map(d=>(
+            <div key={d.id} style={{background:'#fff',border:'1px solid #e5e7eb',borderRadius:10,padding:'12px 16px',marginBottom:8,cursor:'pointer',opacity:.8}} onClick={()=>setSel(d)}>
+              <div style={{display:'flex',alignItems:'center',gap:12}}>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:13,fontWeight:600}}>{d.business}</div>
+                  <div style={{fontSize:11,color:'#9ca3af',fontFamily:'JetBrains Mono,monospace'}}>{d.id} · {d.broker}</div>
+                </div>
+                <div style={{width:120}}>
+                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:2}}>
+                    <span style={{fontSize:10,color:'#9ca3af'}}>{d.paidPct}% paid</span>
+                    <span style={{fontSize:10,color:'#9ca3af'}}>need 50%</span>
+                  </div>
+                  <div style={{height:4,background:'#f1f4f9',borderRadius:2,overflow:'hidden'}}>
+                    <div style={{height:'100%',width:d.paidPct+'%',background:'#d1d5db',borderRadius:2}}/>
+                  </div>
+                </div>
+                <div style={{textAlign:'right',minWidth:80}}>
+                  <div style={{fontSize:12,fontFamily:'JetBrains Mono,monospace',fontWeight:600,color:'#6366f1'}}>{f$(d.amount)}</div>
+                  <div style={{fontSize:10,color:'#9ca3af'}}>bal: {f$(d.balance)}</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!funded.length&&<div style={{textAlign:'center',padding:'48px 0',color:'#9ca3af'}}>No funded deals yet — renewals will appear here once deals are funded and 50% paid</div>}
+    </div>
+  )
+}
+
+// ─── ALERTS ───────────────────────────────────────────────────────────────────
+function Alerts({deals,setSel}){
+  const alerts=[]
+  deals.forEach(d=>{
+    if(d.status==='underwriting')alerts.push({type:'uw',msg:d.business+' needs underwriting review',id:d.id,deal:d,color:'#f59e0b'})
+    if(d.status==='pending')alerts.push({type:'hold',msg:d.business+' is ON HOLD — parser issue',id:d.id,deal:d,color:'#ec4899'})
+    if(d.status==='offered')alerts.push({type:'offer',msg:'Offer ready to send for '+d.business,id:d.id,deal:d,color:'#6366f1'})
+    if(d.monthlyRev&&d.monthlyRev<35000&&!['declined','funded'].includes(d.status))alerts.push({type:'revenue',msg:d.business+' — revenue $'+Number(d.monthlyRev).toLocaleString()+' below $35k minimum',id:d.id,deal:d,color:'#ef4444'})
+  })
+  return(
+    <Card>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16}}>
+        <div style={{fontSize:14,fontWeight:700}}>System Alerts</div>
+        <span style={{background:'rgba(99,102,241,.1)',color:'#6366f1',borderRadius:5,fontSize:11,fontWeight:600,padding:'2px 8px'}}>{alerts.length} active</span>
+      </div>
+      {!alerts.length?<div style={{textAlign:'center',padding:'32px 0',color:'#9ca3af'}}>✓ No active alerts</div>:alerts.map((a,i)=>(
+        <div key={i} onClick={()=>a.deal&&setSel(a.deal)} style={{background:'#f9fafb',border:'1px solid #e5e7eb',borderLeft:'3px solid '+a.color,borderRadius:8,padding:'10px 14px',marginBottom:8,cursor:a.deal?'pointer':'default',display:'flex',alignItems:'center',gap:10}} onMouseEnter={e=>a.deal&&(e.currentTarget.style.borderColor=a.color)} onMouseLeave={e=>a.deal&&(e.currentTarget.style.borderColor='#e5e7eb')}>
+          <span style={{fontSize:16}}>{a.type==='hold'?'⏸':a.type==='uw'?'👁':a.type==='offer'?'💰':'⚠️'}</span>
+          <span style={{fontSize:13,flex:1}}>{a.msg}</span>
+          <span style={{fontSize:10,color:'#9ca3af',fontFamily:'JetBrains Mono,monospace'}}>{a.id}</span>
+        </div>
+      ))}
+    </Card>
   )
 }
 
