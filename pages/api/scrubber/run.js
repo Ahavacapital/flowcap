@@ -26,19 +26,21 @@ export default async function handler(req, res) {
 
       if (docCount > 0) {
         try {
-          await fetch(appUrl + '/api/documents/parse', {
+          const parseRes = await fetch(appUrl + '/api/documents/parse', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ dealId })
           })
-          // Reload deal with fresh data from parser
-          const { data: freshDeal } = await supabase.from('deals').select('*, deal_notes(*)').eq('id', dealId).single()
-          if (freshDeal) deal = freshDeal
+          const parseData = await parseRes.json()
+          console.log('Parser result for', deal.deal_number, ':', parseData.success ? 'success revenue=$'+(parseData.extracted?.avg_monthly_revenue||0) : 'failed')
         } catch (e) { console.error('Parser failed:', e.message) }
       }
     }
 
-    // STEP 2: Check if we now have real data
+    // STEP 2: Always reload fresh data from DB after parser runs
+    const { data: freshDeal } = await supabase.from('deals').select('*, deal_notes(*)').eq('id', dealId).single()
+    if (freshDeal) deal = freshDeal
+
     const parserNote = (deal.deal_notes || []).find(n => n.author === 'Document Parser' && n.body?.includes('Bank statement analysis'))
     const hasRealData = !!(parserNote || deal.monthly_revenue || deal.avg_daily_balance)
 
