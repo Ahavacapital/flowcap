@@ -493,7 +493,7 @@ function DealDetail({deal,onClose,onUpdate,onDelete,onRefresh,notify}){
   useEffect(()=>{
     if(tab==='documents'&&deal.dbId){
       setDocsLoading(true)
-      fetch('/api/deals/documents?dealId='+deal.dbId)
+      fetch('/api/deals/getdocs?dealId='+deal.dbId)
         .then(r=>r.json())
         .then(d=>{setDocs(d.documents||[]);setDocsLoading(false)})
         .catch(()=>setDocsLoading(false))
