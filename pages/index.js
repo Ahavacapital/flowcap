@@ -475,6 +475,8 @@ function Contracts({deals,setSel}){
 function DealDetail({deal,onClose,onUpdate,onDelete,onRefresh,notify}){
   const [tab,setTab]=useState('overview')
   const [note,setNote]=useState('')
+  const [docs,setDocs]=useState([])
+  const [docsLoading,setDocsLoading]=useState(false)
   const [ncat,setNcat]=useState('general')
   const [busy,setBusy]=useState('')
   const [confirmDel,setConfirmDel]=useState(false)
@@ -486,6 +488,17 @@ function DealDetail({deal,onClose,onUpdate,onDelete,onRefresh,notify}){
   const fund=async()=>{if(!deal.dbId)return;setBusy('fund');try{await api('/api/deals/update',{dbId:deal.dbId,status:'funded'});onUpdate({...deal,status:'funded'});notify('Deal funded!');onClose()}catch(e){notify('Failed','error')}setBusy('')}
   const scrub=async()=>{if(!deal.dbId)return;setBusy('scrub');try{const data=await api('/api/scrubber/run',{dealId:deal.dbId});notify('Scrub done — '+(data.approved?'APPROVED':'DECLINED/REVIEW')+' Risk: '+(data.riskScore||'N/A')+'/100');onRefresh();onClose()}catch(e){notify('Failed','error')}setBusy('')}
   const saveNote=()=>{if(!note.trim())return;onUpdate({...deal,uwNotes:[...(deal.uwNotes||[]),{id:'l-'+Date.now(),text:note.trim(),cat:ncat,author:'Underwriter',time:new Date().toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}]});setNote('');notify('Note saved')}
+
+  // Load documents when tab changes to documents
+  useEffect(()=>{
+    if(tab==='documents'&&deal.dbId){
+      setDocsLoading(true)
+      fetch('/api/deals/documents?dealId='+deal.dbId)
+        .then(r=>r.json())
+        .then(d=>{setDocs(d.documents||[]);setDocsLoading(false)})
+        .catch(()=>setDocsLoading(false))
+    }
+  },[tab,deal.dbId])
 
   const flags=[]
   if(deal.nyCourt&&deal.nyCourt!=='clean')flags.push({t:'red',x:'NY Courts: '+deal.nyCourt})
@@ -536,7 +549,7 @@ function DealDetail({deal,onClose,onUpdate,onDelete,onRefresh,notify}){
           )}
 
           <div style={{display:'flex',borderBottom:'1px solid #e5e7eb',marginBottom:14,overflowX:'auto'}}>
-            {['overview','underwriting','notes','timeline'].map(t=>(
+            {['overview','underwriting','documents','notes','timeline'].map(t=>(
               <div key={t} onClick={()=>setTab(t)} style={{padding:'7px 12px',fontSize:12,cursor:'pointer',borderBottom:tab===t?'2px solid #6366f1':'2px solid transparent',color:tab===t?'#6366f1':'#9ca3af',fontWeight:tab===t?600:400,whiteSpace:'nowrap',marginBottom:-1,textTransform:'capitalize',position:'relative'}}>
                 {t}{t==='notes'&&(deal.uwNotes||[]).length>0&&<span style={{position:'absolute',top:4,right:1,width:5,height:5,borderRadius:'50%',background:'#a78bfa',display:'block'}}/>}
               </div>
@@ -594,6 +607,36 @@ function DealDetail({deal,onClose,onUpdate,onDelete,onRefresh,notify}){
                   <div style={{fontSize:13,lineHeight:1.5}}>{n.text}</div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {tab==='documents'&&(
+            <div>
+              <div style={{marginBottom:12,fontSize:13,color:'#6b7280'}}>All files attached to this deal — bank statements, ID, voided check</div>
+              {docsLoading&&<div style={{textAlign:'center',padding:24,color:'#9ca3af'}}>Loading files...</div>}
+              {!docsLoading&&!docs.length&&(
+                <div style={{textAlign:'center',padding:32,color:'#9ca3af'}}>
+                  <div style={{fontSize:32,marginBottom:8}}>📁</div>
+                  <div style={{fontSize:13}}>No files yet</div>
+                  <div style={{fontSize:11,marginTop:4}}>Bank statements will appear here automatically when the broker sends them</div>
+                </div>
+              )}
+              {docs.map((doc,i)=>{
+                const icons={'bank_statement':'🏦','voided_check':'✅','photo_id':'🪪','contract':'📄','tax_document':'📊','other':'📎'}
+                const icon=icons[doc.doc_type]||'📎'
+                const size=doc.size_bytes?doc.size_bytes>1000000?(doc.size_bytes/1000000).toFixed(1)+'MB':(doc.size_bytes/1000).toFixed(0)+'KB':''
+                return(
+                  <div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 12px',background:'#f9fafb',border:'1px solid #e5e7eb',borderRadius:8,marginBottom:8}}>
+                    <span style={{fontSize:20,flexShrink:0}}>{icon}</span>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:13,fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{doc.name}</div>
+                      <div style={{fontSize:10,color:'#9ca3af',fontFamily:'JetBrains Mono,monospace',marginTop:2}}>{(doc.doc_type||'').replace('_',' ')} · {size} · {doc.created_at?new Date(doc.created_at).toLocaleDateString():''}</div>
+                    </div>
+                    <span style={{fontSize:11,fontWeight:600,padding:'2px 8px',borderRadius:5,background:doc.doc_type==='bank_statement'?'rgba(99,102,241,.1)':'rgba(16,185,129,.1)',color:doc.doc_type==='bank_statement'?'#6366f1':'#16a34a'}}>{(doc.doc_type||'other').replace('_',' ')}</span>
+                    <a href={doc.url} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} style={{padding:'5px 10px',borderRadius:6,background:'#fff',border:'1px solid #e5e7eb',fontSize:11,fontWeight:600,color:'#6366f1',cursor:'pointer',textDecoration:'none',flexShrink:0}}>Download</a>
+                  </div>
+                )
+              })}
             </div>
           )}
 
