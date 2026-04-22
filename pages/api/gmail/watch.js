@@ -144,9 +144,15 @@ function collectAtts(payload, out) {
 
 function guessType(filename, mime) {
   const f = filename.toLowerCase()
-  if (f.includes('statement') || f.includes('bank') || f.includes('checking') || f.includes('savings') || f.endsWith('.pdf') || mime === 'application/pdf') return 'bank_statement'
-  if (f.includes('void') || f.includes('check')) return 'voided_check'
-  if (f.includes(' id') || f.includes('license') || f.includes('passport')) return 'photo_id'
-  if (f.includes('contract') || f.includes('agreement')) return 'contract'
+  // Specific non-bank documents first
+  if (f.includes('void') || f.includes('voided')) return 'voided_check'
+  if (f.includes('license') || f.includes('passport') || f.includes('_dl_') || f.includes('driver') || f.includes('photo_id') || f.includes('_id_')) return 'photo_id'
+  if (f.includes('contract') || f.includes('agreement') || f.includes('signed')) return 'contract'
+  if (f.includes('tax') || f.includes('1099') || f.includes('w-2') || f.includes('w2')) return 'tax_document'
+  if (f.includes('export') || f.includes('renderer') || f.includes('report')) return 'other'
+  // Bank statements - must have specific indicators
+  if (f.includes('stmt') || f.includes('statement') || f.includes('bank') || f.includes('checking') || f.includes('savings') || f.includes('estmt') || f.includes('acct') || f.match(/\d{4}[_-]\d{2}[_-]\d{2}/)) return 'bank_statement'
+  // Generic PDFs - classify as other, not bank statement
+  if (mime === 'application/pdf') return 'other'
   return 'other'
 }
