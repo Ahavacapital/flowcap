@@ -66,7 +66,7 @@ export default async function handler(req, res) {
 
 RESPOND WITH ONLY A JSON OBJECT. NO OTHER TEXT BEFORE OR AFTER. START WITH { END WITH }.
 
-{"months_analyzed":3,"avg_monthly_revenue":50000,"avg_daily_balance":5000,"negative_days_per_month":0,"nsf_count_per_month":0,"detected_mca_payments":[{"company":"ABC Funding","amount":500,"frequency":"daily"}],"estimated_positions":1,"months_in_business":24,"revenue_trend":"stable","flags":[],"confidence":"high","notes":"brief summary"}`
+{"months_analyzed":3,"avg_monthly_revenue":50000,"avg_true_revenue":45000,"avg_expenses":40000,"avg_gross_profit":5000,"avg_daily_balance":5000,"avg_true_daily_balance":4000,"negative_days_per_month":0,"low_balance_days_per_month":0,"nsf_count_per_month":0,"mca_withhold_percent":10,"detected_mca_payments":[{"company":"ABC Funding","amount":500,"frequency":"daily","withdrawal_count":22,"total_withdrawn":11000,"last_deposit_date":"2026-01-15","last_deposit_amount":50000}],"estimated_positions":1,"months_in_business":24,"revenue_trend":"stable","monthly_breakdown":[{"month":"January 2026","revenue":52000,"expenses":48000,"starting_balance":5000},{"month":"February 2026","revenue":48000,"expenses":45000,"starting_balance":4500}],"flags":[],"confidence":"high","notes":"brief summary"}`
     })
 
     let rawText = ''
@@ -111,22 +111,31 @@ RESPOND WITH ONLY A JSON OBJECT. NO OTHER TEXT BEFORE OR AFTER. START WITH { END
     if (extracted.estimated_positions != null) updates.positions = extracted.estimated_positions
     await supabase.from('deals').update(updates).eq('id', dealId)
 
-    // Save full analysis note
-    const noteBody = [
-      'Bank statement analysis (' + extracted.months_analyzed + ' months analyzed | Confidence: ' + extracted.confidence + ')',
-      'Avg monthly revenue: $' + Number(extracted.avg_monthly_revenue||0).toLocaleString(),
-      'Avg daily balance: $' + Number(extracted.avg_daily_balance||0).toLocaleString(),
-      'Negative days/month: ' + (extracted.negative_days_per_month||0),
-      'NSFs/month: ' + (extracted.nsf_count_per_month||0),
-      'Estimated positions: ' + (extracted.estimated_positions||0),
-      extracted.detected_mca_payments?.length > 0 ? 'Detected MCA payments: ' + extracted.detected_mca_payments.map(p => p.company + ' $' + p.amount + '/' + p.frequency).join(', ') : 'No recurring MCA payments detected',
-      'Revenue trend: ' + (extracted.revenue_trend||'unknown'),
-      extracted.flags?.length > 0 ? 'Flags: ' + extracted.flags.join(' | ') : '',
-      extracted.notes || ''
-    ].filter(Boolean).join('\n')
+    // Save full scorecard as JSON note for the UI to display
+    const scorecardBody = JSON.stringify({
+      type: 'scorecard',
+      months_analyzed: extracted.months_analyzed,
+      confidence: extracted.confidence,
+      avg_monthly_revenue: extracted.avg_monthly_revenue,
+      avg_true_revenue: extracted.avg_true_revenue,
+      avg_expenses: extracted.avg_expenses,
+      avg_gross_profit: extracted.avg_gross_profit,
+      avg_daily_balance: extracted.avg_daily_balance,
+      avg_true_daily_balance: extracted.avg_true_daily_balance,
+      negative_days: extracted.negative_days_per_month,
+      low_balance_days: extracted.low_balance_days_per_month,
+      nsf_count: extracted.nsf_count_per_month,
+      mca_withhold_percent: extracted.mca_withhold_percent,
+      positions: extracted.estimated_positions,
+      mca_payments: extracted.detected_mca_payments || [],
+      monthly_breakdown: extracted.monthly_breakdown || [],
+      revenue_trend: extracted.revenue_trend,
+      flags: extracted.flags || [],
+      notes: extracted.notes
+    })
 
     await supabase.from('deal_notes').insert({
-      deal_id: dealId, author: 'Document Parser', category: 'system', body: noteBody
+      deal_id: dealId, author: 'Document Parser', category: 'system', body: scorecardBody
     })
 
     return res.json({ success: true, dealId, docsAnalyzed: pdfsToAnalyze.length, extracted, updatedDeal: updates })
