@@ -24,7 +24,7 @@ export default async function handler(req, res) {
       .eq('source', 'email')
       .in('status', ['underwriting', 'new', 'pending'])
       .order('submitted_at', { ascending: false })
-      .limit(20)
+      .limit(10)
 
     if (!allDeals || allDeals.length === 0) {
       return res.json({ message: 'No deals to process', count: 0 })
@@ -43,7 +43,7 @@ export default async function handler(req, res) {
       if (count > 0) continue // Skip deals that already have docs
 
       processed++
-      if (processed > 5) break // Only process 5 per run
+      if (processed > 1) break // Only process 1 per run to avoid timeout
 
       try {
         const { data: thread } = await gmail.users.threads.get({
