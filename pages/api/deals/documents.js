@@ -1,5 +1,5 @@
 export default async function handler(req, res) {
-  const id = req.query ? req.query.dealId : null
+  const id = (req.query || {}).dealId
   if (!id) return res.status(400).json({ error: 'dealId required' })
   try {
     const { createClient } = require('@supabase/supabase-js')
