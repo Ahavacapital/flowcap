@@ -1,5 +1,5 @@
 export default async function handler(req, res) {
-  if (req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}` && req.query.auth !== process.env.CRON_SECRET) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
   try {
@@ -18,13 +18,21 @@ export default async function handler(req, res) {
     const gmail = google.gmail({ version: 'v1', auth: oauth2Client })
     const appUrl = process.env.NEXTAUTH_URL || 'https://flowcap-mca.vercel.app'
 
-    // Get deals that have gmail_thread_id but no documents
+    // Get deals that have gmail_thread_id but NO documents - process 5 at a time
+    const { data: dealsWithDocs } = await supabase
+      .from('documents')
+      .select('deal_id')
+    
+    const dealIdsWithDocs = (dealsWithDocs || []).map(d => d.deal_id)
+
     const { data: deals } = await supabase
       .from('deals')
       .select('id, deal_number, business_name, gmail_thread_id')
       .not('gmail_thread_id', 'is', null)
       .eq('source', 'email')
-      .limit(1)
+      .in('status', ['underwriting', 'new', 'scrubbing'])
+      .not('id', 'in', '(' + (dealIdsWithDocs.length > 0 ? dealIdsWithDocs.map(id => '"'+id+'"').join(',') : '"none"') + ')')
+      .limit(5)
 
     if (!deals || deals.length === 0) {
       return res.json({ message: 'No deals to process', count: 0 })
