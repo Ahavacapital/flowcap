@@ -1,4 +1,1 @@
-export default function Custom404() {
-  return null
-}
-export async function getStaticProps() { return { props: {} } }
+export default function NotFound() { return null }
