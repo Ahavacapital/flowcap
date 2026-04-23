@@ -40,10 +40,10 @@ export default async function handler(req, res) {
         .select('*', { count: 'exact', head: true })
         .eq('deal_id', deal.id)
 
-      if (count > 0) continue // Skip deals that already have docs
+      if ((count || 0) > 0) continue // Skip deals that already have docs
 
+      if (processed >= 1) break // Only process 1 per run to avoid timeout
       processed++
-      if (processed > 1) break // Only process 1 per run to avoid timeout
 
       try {
         const { data: thread } = await gmail.users.threads.get({
