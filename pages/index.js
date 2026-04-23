@@ -698,31 +698,68 @@ function DealDetail({deal,onClose,onUpdate,onDelete,onRefresh,notify}){
 
           {tab==='documents'&&(
             <div>
-              <div style={{marginBottom:12,fontSize:13,color:'#6b7280'}}>All files attached to this deal — bank statements, ID, voided check</div>
+              {/* FOLDER HEADER */}
+              <div style={{display:'flex',alignItems:'center',gap:10,padding:'12px 14px',background:'linear-gradient(135deg,rgba(99,102,241,.06),rgba(99,102,241,.02))',border:'1px solid rgba(99,102,241,.15)',borderRadius:10,marginBottom:14}}>
+                <span style={{fontSize:28}}>📁</span>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:13,fontWeight:700}}>{deal.business}</div>
+                  <div style={{fontSize:11,color:'#9ca3af',fontFamily:'JetBrains Mono,monospace'}}>{deal.id} · Client Documents Folder</div>
+                </div>
+                <div style={{textAlign:'right'}}>
+                  <div style={{fontSize:18,fontWeight:700,color:'#6366f1',fontFamily:'JetBrains Mono,monospace'}}>{docs.length}</div>
+                  <div style={{fontSize:10,color:'#9ca3af'}}>files</div>
+                </div>
+              </div>
+
               {docsLoading&&<div style={{textAlign:'center',padding:24,color:'#9ca3af'}}>Loading files...</div>}
+
               {!docsLoading&&!docs.length&&(
-                <div style={{textAlign:'center',padding:32,color:'#9ca3af'}}>
-                  <div style={{fontSize:32,marginBottom:8}}>📁</div>
-                  <div style={{fontSize:13}}>No files yet</div>
-                  <div style={{fontSize:11,marginTop:4}}>Bank statements will appear here automatically when the broker sends them</div>
+                <div style={{textAlign:'center',padding:32,color:'#9ca3af',background:'#f9fafb',borderRadius:10,border:'2px dashed #e5e7eb'}}>
+                  <div style={{fontSize:40,marginBottom:8}}>📭</div>
+                  <div style={{fontSize:13,fontWeight:600}}>No files yet</div>
+                  <div style={{fontSize:11,marginTop:4}}>Bank statements will appear here automatically when the broker sends them via email</div>
                 </div>
               )}
-              {docs.map((doc,i)=>{
-                const icons={'bank_statement':'🏦','voided_check':'✅','photo_id':'🪪','contract':'📄','tax_document':'📊','other':'📎'}
-                const icon=icons[doc.doc_type]||'📎'
-                const size=doc.size_bytes?doc.size_bytes>1000000?(doc.size_bytes/1000000).toFixed(1)+'MB':(doc.size_bytes/1000).toFixed(0)+'KB':''
-                return(
-                  <div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 12px',background:'#f9fafb',border:'1px solid #e5e7eb',borderRadius:8,marginBottom:8}}>
-                    <span style={{fontSize:20,flexShrink:0}}>{icon}</span>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:13,fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{doc.name}</div>
-                      <div style={{fontSize:10,color:'#9ca3af',fontFamily:'JetBrains Mono,monospace',marginTop:2}}>{(doc.doc_type||'').replace('_',' ')} · {size} · {doc.created_at?new Date(doc.created_at).toLocaleDateString():''}</div>
+
+              {!docsLoading&&docs.length>0&&(()=>{
+                const groups = {
+                  bank_statement: docs.filter(d=>d.doc_type==='bank_statement'),
+                  voided_check: docs.filter(d=>d.doc_type==='voided_check'),
+                  photo_id: docs.filter(d=>d.doc_type==='photo_id'),
+                  contract: docs.filter(d=>d.doc_type==='contract'),
+                  other: docs.filter(d=>!['bank_statement','voided_check','photo_id','contract'].includes(d.doc_type))
+                }
+                const groupLabels = {bank_statement:{label:'Bank Statements',icon:'🏦',color:'#6366f1'},voided_check:{label:'Voided Checks',icon:'✅',color:'#16a34a'},photo_id:{label:'Photo ID',icon:'🪪',color:'#f59e0b'},contract:{label:'Contracts',icon:'📄',color:'#06b6d4'},other:{label:'Other Files',icon:'📎',color:'#9ca3af'}}
+                return Object.entries(groups).map(([type, files]) => {
+                  if (!files.length) return null
+                  const g = groupLabels[type]
+                  return (
+                    <div key={type} style={{marginBottom:16}}>
+                      <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
+                        <span style={{fontSize:16}}>{g.icon}</span>
+                        <span style={{fontSize:11,fontWeight:700,color:g.color,textTransform:'uppercase',letterSpacing:'1px',fontFamily:'JetBrains Mono,monospace'}}>{g.label}</span>
+                        <span style={{fontSize:10,color:'#9ca3af',fontFamily:'JetBrains Mono,monospace'}}>({files.length})</span>
+                      </div>
+                      <div style={{background:'#f9fafb',border:'1px solid #e5e7eb',borderRadius:10,overflow:'hidden'}}>
+                        {files.map((doc,i)=>{
+                          const size=doc.size_bytes?doc.size_bytes>1000000?(doc.size_bytes/1000000).toFixed(1)+' MB':(doc.size_bytes/1000).toFixed(0)+' KB':''
+                          const date=doc.created_at?new Date(doc.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):''
+                          return(
+                            <div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 14px',borderBottom:i<files.length-1?'1px solid #e5e7eb':'none',background:i%2===0?'#fff':'#f9fafb'}}>
+                              <span style={{fontSize:20,flexShrink:0}}>{g.icon}</span>
+                              <div style={{flex:1,minWidth:0}}>
+                                <div style={{fontSize:13,fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{doc.name.replace(/^[a-f0-9-]+-/i,'')}</div>
+                                <div style={{fontSize:10,color:'#9ca3af',fontFamily:'JetBrains Mono,monospace',marginTop:1}}>{size}{date?' · '+date:''}</div>
+                              </div>
+                              {doc.url?<a href={doc.url} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} style={{display:'inline-flex',alignItems:'center',gap:4,padding:'5px 12px',borderRadius:6,background:'#6366f1',color:'#fff',fontSize:11,fontWeight:600,textDecoration:'none',flexShrink:0}}>⬇ Download</a>:<span style={{fontSize:11,color:'#9ca3af'}}>No link</span>}
+                            </div>
+                          )
+                        })}
+                      </div>
                     </div>
-                    <span style={{fontSize:11,fontWeight:600,padding:'2px 8px',borderRadius:5,background:doc.doc_type==='bank_statement'?'rgba(99,102,241,.1)':'rgba(16,185,129,.1)',color:doc.doc_type==='bank_statement'?'#6366f1':'#16a34a'}}>{(doc.doc_type||'other').replace('_',' ')}</span>
-                    <a href={doc.url} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} style={{padding:'5px 10px',borderRadius:6,background:'#fff',border:'1px solid #e5e7eb',fontSize:11,fontWeight:600,color:'#6366f1',cursor:'pointer',textDecoration:'none',flexShrink:0}}>Download</a>
-                  </div>
-                )
-              })}
+                  )
+                })
+              })()}
             </div>
           )}
 
