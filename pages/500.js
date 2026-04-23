@@ -1,4 +1,1 @@
-export default function Custom500() {
-  return null
-}
-export async function getStaticProps() { return { props: {} } }
+export default function ServerError() { return null }
