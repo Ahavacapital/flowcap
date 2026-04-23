@@ -486,7 +486,34 @@ function DealDetail({deal,onClose,onUpdate,onDelete,onRefresh,notify}){
   const advance=async()=>{const next=NS[deal.status];if(!next||!deal.dbId)return;setBusy('advance');try{await api('/api/deals/update',{dbId:deal.dbId,status:next});onUpdate({...deal,status:next});notify('Advanced to '+SL[next])}catch(e){notify('Failed','error')}setBusy('')}
   const decline=async()=>{if(!deal.dbId)return;setBusy('decline');try{await api('/api/deals/update',{dbId:deal.dbId,status:'declined'});onUpdate({...deal,status:'declined'});notify('Deal declined');onClose()}catch(e){notify('Failed','error')}setBusy('')}
   const fund=async()=>{if(!deal.dbId)return;setBusy('fund');try{await api('/api/deals/update',{dbId:deal.dbId,status:'funded'});onUpdate({...deal,status:'funded'});notify('Deal funded!');onClose()}catch(e){notify('Failed','error')}setBusy('')}
-  const scrub=async()=>{if(!deal.dbId)return;setBusy('scrub');try{const data=await api('/api/scrubber/run',{dealId:deal.dbId});notify('Scrub done — '+(data.approved?'APPROVED':'DECLINED/REVIEW')+' Risk: '+(data.riskScore||'N/A')+'/100');onRefresh();onClose()}catch(e){notify('Failed','error')}setBusy('')}
+  const scrub=async()=>{
+    if(!deal.dbId)return
+    setBusy('scrub')
+    try{
+      const controller=new AbortController()
+      const timeout=setTimeout(()=>controller.abort(),25000)
+      const r=await fetch('/api/scrubber/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({dealId:deal.dbId}),signal:controller.signal})
+      clearTimeout(timeout)
+      if(!r.ok)throw new Error('HTTP '+r.status)
+      const data=await r.json()
+      if(data.approved){
+        notify('✅ APPROVED — Risk: '+data.riskScore+'/100 · Offer: '+f$(data.approvedAmount)+' · Profit: '+f$(data.ourProfit))
+      }else if(data.status==='declined'){
+        notify('❌ DECLINED — '+( data.declineReason||'See notes'),'error')
+      }else{
+        notify('👁 Manual Review — Risk: '+(data.riskScore||'N/A')+'/100')
+      }
+      onRefresh()
+      setTimeout(onClose,1500)
+    }catch(e){
+      if(e.name==='AbortError'){
+        notify('Scrubber is processing — check back in 30 seconds')
+      }else{
+        notify('Scrub failed: '+e.message,'error')
+      }
+    }
+    setBusy('')
+  }
   const saveNote=()=>{if(!note.trim())return;onUpdate({...deal,uwNotes:[...(deal.uwNotes||[]),{id:'l-'+Date.now(),text:note.trim(),cat:ncat,author:'Underwriter',time:new Date().toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}]});setNote('');notify('Note saved')}
 
   // Load documents when tab changes to documents
