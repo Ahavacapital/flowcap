@@ -14,7 +14,7 @@ export default async function handler(req, res) {
     const { data: deals, count } = await supabase
       .from('deals')
       .select('id, deal_number, business_name, monthly_revenue, avg_daily_balance', { count: 'exact' })
-      .in('status', ['new', 'scrubbing'])
+      .in('status', ['new', 'scrubbing', 'underwriting'])
       .order('submitted_at', { ascending: false })
       .limit(10)
 
