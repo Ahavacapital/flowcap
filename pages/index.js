@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 const SC={new:'#64748b',scrubbing:'#8b5cf6',underwriting:'#f59e0b',pending:'#ec4899',offered:'#10b981',docs:'#06b6d4',contracts:'#6366f1',bankverify:'#f97316',funded:'#16a34a',declined:'#ef4444',renewal:'#06b6d4'}
 const SL={new:'New',scrubbing:'Scrubbing',underwriting:'Underwriting',pending:'On Hold',offered:'Offered',docs:'Docs Out',contracts:'Contracts',bankverify:'Bank Verify',funded:'Funded',declined:'Declined',renewal:'Renewal'}
 const NS={new:'scrubbing',scrubbing:'underwriting',underwriting:'offered',offered:'docs',docs:'contracts',contracts:'bankverify',bankverify:'funded'}
