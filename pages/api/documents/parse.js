@@ -1,7 +1,7 @@
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
 
-  const { dealId } = req.body || {}
+  const dealId = (req.body || {}).dealId
   if (!dealId) return res.status(400).json({ error: 'dealId required' })
 
   const { createClient } = require('@supabase/supabase-js')
