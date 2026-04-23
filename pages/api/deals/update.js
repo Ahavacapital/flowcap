@@ -6,7 +6,7 @@ export default async function handler(req, res) {
       process.env.NEXT_PUBLIC_SUPABASE_URL,
       process.env.SUPABASE_SERVICE_ROLE_KEY
     )
-    const { dbId, status, amount, factor, termDays, balance, notes } = req.body
+    const { dbId, status, amount, factor, termDays, balance, notes } = req.body || {}
     if (!dbId) return res.status(400).json({ error: 'dbId required' })
     const updates = { updated_at: new Date().toISOString() }
     if (status) updates.status = status
