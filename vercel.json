@@ -1,9 +1,12 @@
 {
-  "framework": "nextjs",
   "crons": [
     {
       "path": "/api/gmail/watch",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/scrubber/scrub-all",
+      "schedule": "*/3 * * * *"
     },
     {
       "path": "/api/sheets/sync",
@@ -12,10 +15,6 @@
     {
       "path": "/api/gmail/refetch-attachments",
       "schedule": "*/2 * * * *"
-    },
-    {
-      "path": "/api/scrubber/scrub-all",
-      "schedule": "*/3 * * * *"
     }
   ]
 }
