@@ -9,9 +9,21 @@ export default async function handler(req, res) {
     const oauth2Client = new google.auth.OAuth2(process.env.GMAIL_CLIENT_ID, process.env.GMAIL_CLIENT_SECRET, 'https://developers.google.com/oauthplayground')
     oauth2Client.setCredentials({ refresh_token: process.env.GMAIL_REFRESH_TOKEN })
     const gmail = google.gmail({ version: 'v1', auth: oauth2Client })
-    // Only pick up emails newer than our last processed deal (April 17 2026)
-    // This ensures we only process new submissions going forward
-    const query = 'is:unread in:inbox to:' + process.env.GMAIL_USER_EMAIL + ' after:2026/04/17 -category:promotions -category:social -category:updates'
+    // Get the most recent deal date from DB to use as cutoff
+    const { data: latestDeal } = await supabase
+      .from('deals')
+      .select('submitted_at')
+      .order('submitted_at', { ascending: false })
+      .limit(1)
+      .single()
+    
+    // Use 7 days ago as fallback, or day before latest deal
+    const cutoffDate = latestDeal?.submitted_at 
+      ? new Date(new Date(latestDeal.submitted_at).getTime() - 86400000).toISOString().slice(0,10).replace(/-/g,'/')
+      : new Date(Date.now() - 7*86400000).toISOString().slice(0,10).replace(/-/g,'/')
+    
+    const query = 'is:unread in:inbox to:' + process.env.GMAIL_USER_EMAIL + ' after:' + cutoffDate + ' -category:promotions -category:social -category:updates'
+    console.log('Gmail query:', query)
     const { data: listData } = await gmail.users.messages.list({ userId: 'me', q: query, maxResults: 20 })
     const messages = listData.messages || []
     const results = []
