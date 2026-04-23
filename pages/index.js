@@ -573,20 +573,106 @@ function DealDetail({deal,onClose,onUpdate,onDelete,onRefresh,notify}){
 
           {tab==='underwriting'&&(
             <div>
-              <div style={{marginBottom:12}}>
-                <div style={{display:'flex',justifyContent:'space-between',marginBottom:5}}><span style={{fontSize:13,fontWeight:600}}>Risk Score</span><span style={{fontSize:15,fontFamily:'JetBrains Mono,monospace',fontWeight:700,color:rc(deal.risk||0)}}>{deal.risk!=null?deal.risk+' / 100':'Not scrubbed'}</span></div>
-                {deal.risk!=null&&<Sbar val={deal.risk} color={rc(deal.risk)}/>}
-              </div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:12}}>
-                {[{l:'Positions',v:deal.positions+' position'+(deal.positions!==1?'s':''),c:deal.positions>=3?'#ef4444':deal.positions>=2?'#f59e0b':'#16a34a'},{l:'NY Courts',v:deal.nyCourt||'Pending',c:deal.nyCourt==='clean'?'#16a34a':'#ef4444'},{l:'DataMerch',v:deal.dataMerch||'Pending',c:deal.dataMerch==='clean'?'#16a34a':'#f59e0b'},{l:'Monthly Revenue',v:f$(deal.monthlyRev),c:deal.monthlyRev>=35000?'#16a34a':deal.monthlyRev?'#ef4444':null}].map((f,i)=>(
-                  <div key={i} style={{background:'#f9fafb',border:'1px solid #e5e7eb',borderRadius:8,padding:'10px 12px'}}><div style={{fontSize:10,color:'#9ca3af',textTransform:'uppercase',letterSpacing:'.8px',fontWeight:600,fontFamily:'JetBrains Mono,monospace',marginBottom:3}}>{f.l}</div><div style={{fontSize:13,fontWeight:700,color:f.c||'#111827'}}>{f.v}</div></div>
-                ))}
-              </div>
-              {flags.map((fl,i)=>(
-                <div key={i} style={{padding:'8px 12px',borderRadius:8,background:fl.t==='red'?'rgba(239,68,68,.06)':fl.t==='amber'?'rgba(245,158,11,.06)':'rgba(22,163,74,.06)',borderLeft:'3px solid '+(fl.t==='red'?'#ef4444':fl.t==='amber'?'#f59e0b':'#16a34a'),marginBottom:7,border:'1px solid '+(fl.t==='red'?'rgba(239,68,68,.2)':fl.t==='amber'?'rgba(245,158,11,.2)':'rgba(22,163,74,.2)')}}>
-                  <span style={{fontSize:12}}>{fl.x}</span>
+              {/* RISK SCORE BAR */}
+              <div style={{background:deal.risk>=65?'rgba(22,163,74,.06)':deal.risk>=50?'rgba(245,158,11,.06)':'rgba(239,68,68,.06)',border:'1px solid '+(deal.risk>=65?'rgba(22,163,74,.2)':deal.risk>=50?'rgba(245,158,11,.2)':'rgba(239,68,68,.2)'),borderRadius:10,padding:'14px 16px',marginBottom:14}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+                  <span style={{fontSize:13,fontWeight:700}}>Risk Score</span>
+                  <span style={{fontSize:22,fontFamily:'JetBrains Mono,monospace',fontWeight:700,color:rc(deal.risk||0)}}>{deal.risk!=null?deal.risk+' / 100':'Not scrubbed'}</span>
                 </div>
-              ))}
+                <Sbar val={deal.risk||0} color={rc(deal.risk||0)}/>
+                <div style={{display:'flex',justifyContent:'space-between',marginTop:4,fontSize:10,color:'#9ca3af',fontFamily:'JetBrains Mono,monospace'}}><span>0 — High Risk</span><span>50 — Moderate</span><span>100 — Strong</span></div>
+              </div>
+
+              {/* REVENUE STATISTICS — MoneyThumb style */}
+              {(()=>{
+                const sc = (deal.uwNotes||[]).find(n=>n.author==='Document Parser'&&n.text.startsWith('{'))
+                let s = null
+                try { s = sc ? JSON.parse(sc.text) : null } catch(e) {}
+                if(!s&&!deal.monthlyRev) return <div style={{textAlign:'center',padding:20,color:'#9ca3af',fontSize:13}}>Run AI Scrub to generate bank statement analysis</div>
+                return (
+                  <div>
+                    {/* Revenue Stats */}
+                    <div style={{fontSize:11,fontWeight:700,color:'#6366f1',textTransform:'uppercase',letterSpacing:'1px',marginBottom:8,fontFamily:'JetBrains Mono,monospace'}}>Revenue Statistics</div>
+                    <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,marginBottom:14}}>
+                      {[
+                        {l:'Avg Monthly Revenue',v:f$(s?.avg_monthly_revenue||deal.monthlyRev),c:deal.monthlyRev>=35000?'#16a34a':deal.monthlyRev?'#ef4444':null,ok:deal.monthlyRev>=35000},
+                        {l:'Avg True Revenue',v:f$(s?.avg_true_revenue),c:'#111827'},
+                        {l:'Avg Expenses',v:f$(s?.avg_expenses),c:'#111827'},
+                        {l:'Avg Gross Profit',v:f$(s?.avg_gross_profit),c:s?.avg_gross_profit>0?'#16a34a':'#ef4444'},
+                        {l:'Avg Daily Balance',v:f$(s?.avg_daily_balance||deal.dailyBal),c:deal.dailyBal>=1000?'#16a34a':deal.dailyBal?'#ef4444':null,ok:deal.dailyBal>=1000},
+                        {l:'MCA Withhold %',v:(s?.mca_withhold_percent||0)+'%',c:s?.mca_withhold_percent>40?'#ef4444':'#111827'},
+                      ].map((m,i)=>(
+                        <div key={i} style={{background:'#f9fafb',border:'1px solid #e5e7eb',borderRadius:8,padding:'10px 12px'}}>
+                          <div style={{fontSize:10,color:'#9ca3af',textTransform:'uppercase',letterSpacing:'.5px',fontWeight:600,marginBottom:3,fontFamily:'JetBrains Mono,monospace'}}>{m.l}</div>
+                          <div style={{fontSize:13,fontWeight:700,fontFamily:'JetBrains Mono,monospace',color:m.c||'#111827'}}>{m.v}</div>
+                          {m.ok!=null&&<div style={{fontSize:10,marginTop:2,color:m.ok?'#16a34a':'#ef4444'}}>{m.ok?'✓ Meets minimum':'✗ Below minimum'}</div>}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Risk Metrics */}
+                    <div style={{fontSize:11,fontWeight:700,color:'#6366f1',textTransform:'uppercase',letterSpacing:'1px',marginBottom:8,fontFamily:'JetBrains Mono,monospace'}}>Risk Metrics</div>
+                    <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:14}}>
+                      {[
+                        {l:'Days Negative',v:s?.negative_days||deal.dailyBal<0?s?.negative_days||0:0,ok:(s?.negative_days||0)<=7,suffix:'/mo'},
+                        {l:'NSFs',v:s?.nsf_count||0,ok:(s?.nsf_count||0)===0,suffix:'/mo'},
+                        {l:'Positions',v:deal.positions||0,ok:deal.positions<3,suffix:''},
+                        {l:'NY Courts',v:deal.nyCourt||'Pending',ok:deal.nyCourt==='clean',suffix:''},
+                      ].map((m,i)=>(
+                        <div key={i} style={{background:'#f9fafb',border:'1px solid '+(m.ok?'rgba(22,163,74,.2)':'rgba(239,68,68,.2)'),borderRadius:8,padding:'10px 12px',borderLeft:'3px solid '+(m.ok?'#16a34a':'#ef4444')}}>
+                          <div style={{fontSize:10,color:'#9ca3af',textTransform:'uppercase',letterSpacing:'.5px',fontWeight:600,marginBottom:3,fontFamily:'JetBrains Mono,monospace'}}>{m.l}</div>
+                          <div style={{fontSize:16,fontWeight:700,fontFamily:'JetBrains Mono,monospace',color:m.ok?'#16a34a':'#ef4444'}}>{m.v}{m.suffix}</div>
+                          <div style={{fontSize:10,color:m.ok?'#16a34a':'#ef4444'}}>{m.ok?'✓ Pass':'✗ Flag'}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* MCA Positions */}
+                    {(s?.mca_payments||[]).length>0&&(
+                      <div style={{marginBottom:14}}>
+                        <div style={{fontSize:11,fontWeight:700,color:'#6366f1',textTransform:'uppercase',letterSpacing:'1px',marginBottom:8,fontFamily:'JetBrains Mono,monospace'}}>MCA Positions Detected ({(s?.mca_payments||[]).length})</div>
+                        <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
+                          <thead><tr>{['Lender','Frequency','Amount','Count','Total Withdrawn'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 10px',fontSize:10,color:'#9ca3af',textTransform:'uppercase',letterSpacing:'.5px',borderBottom:'1px solid #f1f4f9',fontFamily:'JetBrains Mono,monospace',fontWeight:600}}>{h}</th>)}</tr></thead>
+                          <tbody>{(s?.mca_payments||[]).map((p,i)=>(
+                            <tr key={i} style={{borderBottom:'1px solid #f9fafb'}}>
+                              <td style={{padding:'8px 10px',fontWeight:600}}>{p.company}</td>
+                              <td style={{padding:'8px 10px',color:'#6b7280',textTransform:'capitalize'}}>{p.frequency}</td>
+                              <td style={{padding:'8px 10px',fontFamily:'JetBrains Mono,monospace',color:'#ef4444',fontWeight:600}}>{f$(p.amount)}</td>
+                              <td style={{padding:'8px 10px',fontFamily:'JetBrains Mono,monospace'}}>{p.withdrawal_count||'--'}</td>
+                              <td style={{padding:'8px 10px',fontFamily:'JetBrains Mono,monospace',color:'#ef4444'}}>{f$(p.total_withdrawn)}</td>
+                            </tr>
+                          ))}</tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {/* Monthly Breakdown */}
+                    {(s?.monthly_breakdown||[]).length>0&&(
+                      <div>
+                        <div style={{fontSize:11,fontWeight:700,color:'#6366f1',textTransform:'uppercase',letterSpacing:'1px',marginBottom:8,fontFamily:'JetBrains Mono,monospace'}}>Monthly Breakdown</div>
+                        <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
+                          <thead><tr>{['Month','Revenue','Expenses','Starting Balance'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 10px',fontSize:10,color:'#9ca3af',textTransform:'uppercase',letterSpacing:'.5px',borderBottom:'1px solid #f1f4f9',fontFamily:'JetBrains Mono,monospace',fontWeight:600}}>{h}</th>)}</tr></thead>
+                          <tbody>{(s?.monthly_breakdown||[]).map((m,i)=>(
+                            <tr key={i} style={{borderBottom:'1px solid #f9fafb'}}>
+                              <td style={{padding:'8px 10px',fontWeight:600}}>{m.month}</td>
+                              <td style={{padding:'8px 10px',fontFamily:'JetBrains Mono,monospace',color:'#16a34a',fontWeight:600}}>{f$(m.revenue)}</td>
+                              <td style={{padding:'8px 10px',fontFamily:'JetBrains Mono,monospace',color:'#ef4444'}}>{f$(m.expenses)}</td>
+                              <td style={{padding:'8px 10px',fontFamily:'JetBrains Mono,monospace',color:'#6b7280'}}>{f$(m.starting_balance)}</td>
+                            </tr>
+                          ))}</tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {/* Flags */}
+                    {flags.length>0&&<div style={{marginTop:12}}>{flags.map((fl,i)=>(
+                      <div key={i} style={{padding:'7px 12px',borderRadius:7,background:fl.t==='red'?'rgba(239,68,68,.06)':fl.t==='amber'?'rgba(245,158,11,.06)':'rgba(22,163,74,.06)',borderLeft:'3px solid '+(fl.t==='red'?'#ef4444':fl.t==='amber'?'#f59e0b':'#16a34a'),marginBottom:6}}>
+                        <span style={{fontSize:12}}>{fl.x}</span>
+                      </div>
+                    ))}</div>}
+                  </div>
+                )
+              })()}
             </div>
           )}
 
