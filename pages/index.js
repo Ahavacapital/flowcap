@@ -64,7 +64,22 @@ export default function App(){
 
   const alertCount=deals.filter(d=>['underwriting','pending','offered'].includes(d.status)).length
   const renewalCount=deals.filter(d=>d.status==='funded'&&d.balance&&d.amount&&(d.balance/d.amount)<=0.5).length
-  const NAV=[{id:'dashboard',l:'Dashboard'},{id:'deals',l:'All Deals',b:todayCnt||null},{id:'pipeline',l:'Pipeline',b:active.length||null},{id:'uwqueue',l:'UW Queue',b:uwCount||null},{id:'brokers',l:'Brokers / ISO'},{id:'contracts',l:'Contracts'},{id:'renewals',l:'Renewals',b:renewalCount||null},{id:'alerts',l:'Alerts',b:alertCount||null}]
+  const bvCount=deals.filter(d=>d.status==='bankverify').length
+  const contractCount=deals.filter(d=>d.status==='contracts').length
+  const fundedCount=deals.filter(d=>d.status==='funded').length
+  const NAV=[
+    {id:'dashboard',l:'Dashboard',section:'main'},
+    {id:'deals',l:'All Deals',b:todayCnt||null,section:'main'},
+    {id:'uwqueue',l:'UW Queue',b:uwCount||null,section:'main'},
+    {id:'contracts',l:'Contracts',b:contractCount||null,section:'main'},
+    {id:'bvqueue',l:'Bank Verify Queue',b:bvCount||null,section:'main'},
+    {id:'funded',l:'Funded Deals',b:fundedCount||null,section:'main'},
+    {id:'renewals',l:'Renewals',b:renewalCount||null,section:'main'},
+    {id:'alerts',l:'Alerts',b:alertCount||null,section:'main'},
+    {id:'brokers',l:'Brokers / ISO',section:'partners'},
+    {id:'iso_campaigns',l:'ISO Campaigns',section:'partners'},
+    {id:'merchant_campaigns',l:'Merchant Campaigns',section:'partners'},
+  ]
 
   const css=`
     *{margin:0;padding:0;box-sizing:border-box}
@@ -118,7 +133,7 @@ export default function App(){
         {/* MAIN */}
         <div style={{flex:1,minWidth:0,height:'100%',overflow:'hidden',display:'flex',flexDirection:'column'}}>
           <div style={{padding:'0 22px',height:52,minHeight:52,flexShrink:0,borderBottom:'1px solid #e5e7eb',display:'flex',alignItems:'center',gap:10,background:'#fff'}}>
-            <div style={{fontSize:14,fontWeight:600,flex:1,color:'#111827'}}>{{dashboard:'Dashboard',deals:'All Deals',pipeline:'Pipeline',uwqueue:'UW Queue',brokers:'Brokers / ISO',contracts:'Contracts',renewals:'Renewals',alerts:'Alerts'}[pg]||pg}</div>
+            <div style={{fontSize:14,fontWeight:600,flex:1,color:'#111827'}}>{{dashboard:'Dashboard',deals:'All Deals',uwqueue:'UW Queue',contracts:'Contracts',bvqueue:'Bank Verify Queue',funded:'Funded Deals',renewals:'Renewals',alerts:'Alerts',brokers:'Brokers / ISO',iso_campaigns:'ISO Campaigns',merchant_campaigns:'Merchant Campaigns'}[pg]||pg}</div>
             {todayCnt>0&&<span style={{fontSize:11,color:'#16a34a',background:'rgba(22,163,74,.1)',border:'1px solid rgba(22,163,74,.2)',padding:'2px 8px',borderRadius:10,fontFamily:'JetBrains Mono,monospace'}}>{todayCnt} new today</span>}
             <div style={{display:'flex',gap:7}}>
               <Btn sm sec onClick={loadDeals}>Refresh</Btn>
@@ -135,6 +150,10 @@ export default function App(){
             {pg==='contracts'&&<Contracts deals={deals} setSel={setSel}/>}
             {pg==='renewals'&&<Renewals deals={deals} setSel={setSel}/>}
             {pg==='alerts'&&<Alerts deals={deals} setSel={setSel}/>}
+            {pg==='bvqueue'&&<BVQueue deals={deals} setSel={setSel} onUpdate={updDeal} notify={notify}/>}
+            {pg==='funded'&&<FundedDeals deals={deals} setSel={setSel}/>}
+            {pg==='iso_campaigns'&&<ISOCampaigns deals={deals}/>}
+            {pg==='merchant_campaigns'&&<MerchantCampaigns deals={deals}/>}
           </div>
         </div>
       </div>
@@ -943,6 +962,134 @@ function Renewals({deals,setSel}){
       )}
 
       {!funded.length&&<div style={{textAlign:'center',padding:'48px 0',color:'#9ca3af'}}>No funded deals yet — renewals will appear here once deals are funded and 50% paid</div>}
+    </div>
+  )
+}
+
+
+// ─── BANK VERIFY QUEUE ────────────────────────────────────────────────────────
+function BVQueue({deals,setSel,onUpdate,notify}){
+  const queue=deals.filter(d=>d.status==='bankverify')
+  const fund=async(deal)=>{
+    try{
+      await fetch('/api/deals/update',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({dbId:deal.dbId,status:'funded'})})
+      onUpdate({...deal,status:'funded'})
+      notify('Deal funded!')
+    }catch(e){notify('Failed','error')}
+  }
+  return(
+    <Card>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16}}>
+        <div style={{fontSize:14,fontWeight:700}}>Bank Verify Queue</div>
+        <span style={{background:'rgba(249,115,22,.1)',color:'#f97316',borderRadius:5,fontSize:11,fontWeight:600,padding:'2px 8px'}}>{queue.length} pending</span>
+      </div>
+      {!queue.length?<div style={{textAlign:'center',padding:32,color:'#9ca3af'}}>No deals awaiting bank verification</div>:queue.map(d=>(
+        <div key={d.id} style={{background:'#f9fafb',border:'1px solid #e5e7eb',borderRadius:10,padding:'14px 16px',marginBottom:10}}>
+          <div style={{display:'flex',alignItems:'center',gap:12}}>
+            <div style={{flex:1}}>
+              <div style={{fontWeight:700,fontSize:14}}>{d.business}</div>
+              <div style={{fontSize:11,color:'#9ca3af',fontFamily:'JetBrains Mono,monospace',marginTop:2}}>{d.id} · {d.broker}</div>
+            </div>
+            <div style={{textAlign:'right',marginRight:8}}>
+              <div style={{fontSize:15,fontWeight:700,fontFamily:'JetBrains Mono,monospace',color:'#6366f1'}}>{f$(d.amount)}</div>
+              <div style={{fontSize:10,color:'#9ca3af'}}>approved offer</div>
+            </div>
+            <button onClick={()=>setSel(d)} style={{padding:'6px 12px',borderRadius:7,background:'#f9fafb',border:'1px solid #e5e7eb',fontSize:12,cursor:'pointer',fontFamily:'Inter,sans-serif',fontWeight:500}}>View</button>
+            <button onClick={()=>fund(d)} style={{padding:'6px 14px',borderRadius:7,background:'#16a34a',color:'#fff',border:'none',fontSize:12,cursor:'pointer',fontFamily:'Inter,sans-serif',fontWeight:600}}>✓ Mark Funded</button>
+          </div>
+        </div>
+      ))}
+    </Card>
+  )
+}
+
+// ─── FUNDED DEALS ─────────────────────────────────────────────────────────────
+function FundedDeals({deals,setSel}){
+  const funded=deals.filter(d=>d.status==='funded').sort((a,b)=>new Date(b.funded||b.submitted)-new Date(a.funded||a.submitted))
+  const totalVol=funded.reduce((s,d)=>s+(d.amount||0),0)
+  const totalProfit=funded.reduce((s,d)=>s+(d.profit||0),0)
+  return(
+    <div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,marginBottom:16}}>
+        <Stat label="Total Funded" value={funded.length} sub="all time"/>
+        <Stat label="Total Volume" value={f$(totalVol)} color="#16a34a"/>
+        <Stat label="Total Profit" value={f$(totalProfit)} color="#6366f1"/>
+      </div>
+      <Card p={0}>
+        <table style={{width:'100%',borderCollapse:'collapse'}}>
+          <thead><tr>{['Business','Broker','Amount','Factor','Profit','Funded Date'].map(h=><th key={h} style={{textAlign:'left',padding:'8px 14px',fontSize:10,color:'#9ca3af',textTransform:'uppercase',letterSpacing:'.8px',borderBottom:'1px solid #f1f4f9',fontWeight:600,fontFamily:'JetBrains Mono,monospace'}}>{h}</th>)}</tr></thead>
+          <tbody>{funded.map(d=>(
+            <tr key={d.id} onClick={()=>setSel(d)} style={{cursor:'pointer',borderBottom:'1px solid #f9fafb'}} onMouseEnter={e=>e.currentTarget.style.background='#f9fafb'} onMouseLeave={e=>e.currentTarget.style.background=''}>
+              <td style={{padding:'12px 14px'}}><div style={{fontWeight:600}}>{d.business}</div><div style={{fontSize:10,color:'#9ca3af',fontFamily:'JetBrains Mono,monospace'}}>{d.id}</div></td>
+              <td style={{padding:'12px 14px',fontSize:12,color:'#6b7280'}}>{d.broker}</td>
+              <td style={{padding:'12px 14px',fontFamily:'JetBrains Mono,monospace',fontWeight:600,color:'#6366f1'}}>{f$(d.amount)}</td>
+              <td style={{padding:'12px 14px',fontFamily:'JetBrains Mono,monospace',fontSize:12}}>{d.factor?d.factor.toFixed(3)+'x':'--'}</td>
+              <td style={{padding:'12px 14px',fontFamily:'JetBrains Mono,monospace',fontWeight:600,color:'#16a34a'}}>{f$(d.profit)}</td>
+              <td style={{padding:'12px 14px',fontSize:11,color:'#9ca3af',fontFamily:'JetBrains Mono,monospace'}}>{d.funded||d.submitted}</td>
+            </tr>
+          ))}
+          {!funded.length&&<tr><td colSpan={6} style={{textAlign:'center',padding:32,color:'#9ca3af'}}>No funded deals yet</td></tr>}
+          </tbody>
+        </table>
+      </Card>
+    </div>
+  )
+}
+
+// ─── ISO CAMPAIGNS ────────────────────────────────────────────────────────────
+function ISOCampaigns({deals}){
+  const brokers=[...new Set(deals.map(d=>d.broker))].filter(b=>b&&b!=='Unknown')
+  return(
+    <div>
+      <div style={{marginBottom:16,padding:'14px 16px',background:'rgba(99,102,241,.06)',border:'1px solid rgba(99,102,241,.2)',borderRadius:10}}>
+        <div style={{fontSize:13,fontWeight:700,marginBottom:4}}>📧 ISO Email Campaigns</div>
+        <div style={{fontSize:12,color:'#6b7280'}}>Send targeted campaigns to your broker network. Integration with SendGrid coming soon.</div>
+      </div>
+      <Card>
+        <div style={{fontSize:13,fontWeight:700,marginBottom:16}}>Your ISO Network ({brokers.length} brokers)</div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10,marginBottom:20}}>
+          {[{l:'Rate Sheet Update',d:'Send updated buy/sell rates to all ISOs',icon:'📊'},{l:'New Product Launch',d:'Announce new advance products or terms',icon:'🚀'},{l:'Performance Report',d:'Send monthly volume report to top ISOs',icon:'📈'}].map((t,i)=>(
+            <div key={i} style={{background:'#f9fafb',border:'1px solid #e5e7eb',borderRadius:10,padding:'14px 16px'}}>
+              <div style={{fontSize:20,marginBottom:8}}>{t.icon}</div>
+              <div style={{fontSize:13,fontWeight:600,marginBottom:4}}>{t.l}</div>
+              <div style={{fontSize:11,color:'#9ca3af',marginBottom:10}}>{t.d}</div>
+              <button style={{padding:'6px 14px',borderRadius:6,background:'#6366f1',color:'#fff',border:'none',fontSize:11,fontWeight:600,cursor:'not-allowed',opacity:.6,fontFamily:'Inter,sans-serif'}}>Coming Soon</button>
+            </div>
+          ))}
+        </div>
+        <div style={{fontSize:11,color:'#9ca3af',padding:'10px 12px',background:'#f9fafb',borderRadius:8,border:'1px solid #e5e7eb'}}>
+          💡 To enable email campaigns, connect SendGrid or Mailchimp in Settings. You have {brokers.length} ISO contacts ready to receive campaigns.
+        </div>
+      </Card>
+    </div>
+  )
+}
+
+// ─── MERCHANT CAMPAIGNS ───────────────────────────────────────────────────────
+function MerchantCampaigns({deals}){
+  const merchants=deals.filter(d=>d.email&&d.status!=='declined')
+  return(
+    <div>
+      <div style={{marginBottom:16,padding:'14px 16px',background:'rgba(16,185,129,.06)',border:'1px solid rgba(16,185,129,.2)',borderRadius:10}}>
+        <div style={{fontSize:13,fontWeight:700,marginBottom:4}}>📱 Merchant Outreach Campaigns</div>
+        <div style={{fontSize:12,color:'#6b7280'}}>Re-engage merchants, send renewal offers, and follow up on pending applications.</div>
+      </div>
+      <Card>
+        <div style={{fontSize:13,fontWeight:700,marginBottom:16}}>Campaign Templates ({merchants.length} merchant contacts)</div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10,marginBottom:20}}>
+          {[{l:'Renewal Offer',d:'Send renewal offers to 50%+ paid merchants',icon:'🔄',color:'#16a34a'},{l:'Application Follow-up',d:'Follow up on pending or underwriting deals',icon:'📞',color:'#f59e0b'},{l:'Welcome Package',d:'Send onboarding info to newly funded merchants',icon:'🎉',color:'#6366f1'}].map((t,i)=>(
+            <div key={i} style={{background:'#f9fafb',border:'1px solid #e5e7eb',borderRadius:10,padding:'14px 16px'}}>
+              <div style={{fontSize:20,marginBottom:8}}>{t.icon}</div>
+              <div style={{fontSize:13,fontWeight:600,marginBottom:4}}>{t.l}</div>
+              <div style={{fontSize:11,color:'#9ca3af',marginBottom:10}}>{t.d}</div>
+              <button style={{padding:'6px 14px',borderRadius:6,background:t.color,color:'#fff',border:'none',fontSize:11,fontWeight:600,cursor:'not-allowed',opacity:.6,fontFamily:'Inter,sans-serif'}}>Coming Soon</button>
+            </div>
+          ))}
+        </div>
+        <div style={{fontSize:11,color:'#9ca3af',padding:'10px 12px',background:'#f9fafb',borderRadius:8,border:'1px solid #e5e7eb'}}>
+          💡 Connect SendGrid or Mailchimp to activate campaigns. {merchants.length} merchant contacts are ready.
+        </div>
+      </Card>
     </div>
   )
 }
