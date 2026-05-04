@@ -10,6 +10,38 @@ const f$=n=>n!=null?'$'+Number(n).toLocaleString():'--'
 const fx=n=>n!=null?Number(n).toFixed(3)+'x':'--'
 const rc=r=>r>=70?'#10b981':r>=50?'#f59e0b':'#ef4444'
 const isToday=d=>{if(!d)return false;return new Date(d).toDateString()===new Date().toDateString()}
+function noteFromApi(n){
+  return{id:n.id,text:n.body||'',cat:n.category||'general',author:n.author||'System',time:n.created_at?new Date(n.created_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):''}
+}
+const normalizeStatus=s=>{
+  const v=String(s||'').toLowerCase().trim()
+  if(!v)return 'new'
+  const map={
+    submitted:'new',
+    intake:'new',
+    parsed:'scrubbing',
+    parsing:'scrubbing',
+    in_underwriting:'underwriting',
+    manual_review:'underwriting',
+    manual:'underwriting',
+    uw:'underwriting',
+    on_hold:'pending',
+    hold:'pending',
+    approved:'offered',
+    approve:'offered',
+    docs_out:'docs',
+    documents:'docs',
+    document:'docs',
+    contract:'contracts',
+    contract_sent:'contracts',
+    contracts_sent:'contracts',
+    bank_verify:'bankverify',
+    bank_verification:'bankverify',
+    bankverification:'bankverify',
+    funding:'funded',
+  }
+  return map[v]||v
+}
 
 function StatusPill({status}){
   const c=SC[status]||'#64748b'
@@ -23,12 +55,15 @@ function Toast({msg,type='success',onClose}){
 
 function mapDeal(d){
   const profit=d.amount_approved&&d.factor_rate?Math.round(d.amount_approved*(1.499-d.factor_rate)):null
-  return{id:d.deal_number||d.id,dbId:d.id,business:d.business_name||'Unknown',contact:d.contact_name||'',email:d.contact_email||'',broker:d.broker?.name||d.contact_email||'Unknown',amount:d.amount_approved||null,requested:d.amount_requested||null,status:d.status||'new',risk:d.risk_score||null,factor:d.factor_rate||null,termDays:d.term_months?d.term_months*30:null,positions:d.positions||0,dailyBal:d.avg_daily_balance||null,monthlyRev:d.monthly_revenue||null,nyCourt:d.ny_court_result||null,dataMerch:d.datamerch_result||null,submitted:d.submitted_at?d.submitted_at.slice(0,10):'',submittedAt:d.submitted_at||null,funded:d.funded_at?d.funded_at.slice(0,10):null,balance:d.balance||null,notes:d.notes||'',uwNotes:(d.deal_notes||[]).map(n=>({id:n.id,text:n.body||'',cat:n.category||'general',author:n.author||'System',time:n.created_at?new Date(n.created_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):''  })),profit,payback:d.amount_approved?Math.round(d.amount_approved*1.499):null}
+  const uwNotes=Array.isArray(d.deal_notes)?d.deal_notes.map(noteFromApi):[]
+  return{id:d.deal_number||d.id,dbId:d.id,business:d.business_name||'Unknown',contact:d.contact_name||'',email:d.contact_email||'',broker:d.broker?.name||d.contact_email||'Unknown',brokerEmail:d.broker?.email||'',amount:d.amount_approved||null,requested:d.amount_requested||null,status:normalizeStatus(d.status),risk:d.risk_score||null,factor:d.factor_rate||null,termDays:d.term_months?d.term_months*30:null,positions:d.positions||0,dailyBal:d.avg_daily_balance||null,monthlyRev:d.monthly_revenue||null,nyCourt:d.ny_court_result||null,dataMerch:d.datamerch_result||null,submitted:d.submitted_at?d.submitted_at.slice(0,10):'',submittedAt:d.submitted_at||null,funded:d.funded_at?d.funded_at.slice(0,10):null,balance:d.balance||null,notes:d.notes||'',uwNotes,profit,payback:d.amount_approved?Math.round(d.amount_approved*1.499):null}
 }
 
 export default function App(){
   const [pg,setPg]=useState('dashboard')
+  const [dealsTab,setDealsTab]=useState('all')
   const [deals,setDeals]=useState([])
+  const [integrationStatus,setIntegrationStatus]=useState([])
   const [loading,setLoading]=useState(true)
   const [sel,setSel]=useState(null)
   const [showNew,setShowNew]=useState(false)
@@ -38,16 +73,50 @@ export default function App(){
   const notify=(msg,type='success')=>setToast({msg,type})
 
   const loadDeals=useCallback(async()=>{
-    try{const r=await fetch('/api/deals/list');if(!r.ok)throw new Error();const data=await r.json();if(Array.isArray(data.deals))setDeals(data.deals.map(mapDeal))}
-    catch(e){console.error('Load deals:',e)}
+    try{
+      // Full restore: up to 500 deals per page with embedded deal_notes + broker (original API shape).
+      let merged=[]
+      let cursor=null
+      const pageLimit=500
+      for(let page=0;page<40;page++){
+        const url=cursor
+          ? `/api/deals/list?limit=${pageLimit}&cursor=${encodeURIComponent(cursor)}`
+          : `/api/deals/list?limit=${pageLimit}`
+        const r=await fetch(url,{cache:'no-store'})
+        if(!r.ok)throw new Error('deals list '+r.status)
+        const data=await r.json()
+        const batch=Array.isArray(data.deals)?data.deals:[]
+        if(!batch.length)break
+        merged=merged.concat(batch)
+        if(batch.length<pageLimit)break
+        cursor=data.nextCursor||null
+        if(!cursor)break
+      }
+      const seen=new Set()
+      const dedup=merged.filter(d=>{const k=d.id||d.deal_number;if(seen.has(k))return false;seen.add(k);return true})
+      setDeals(dedup.map(mapDeal))
+    }catch(e){
+      console.error('Load deals:',e)
+    }
     setLoading(false)
   },[])
 
-  useEffect(()=>{loadDeals();timer.current=setInterval(loadDeals,60000);return()=>clearInterval(timer.current)},[loadDeals])
+  const loadIntegrations=useCallback(async()=>{
+    try{
+      const r=await fetch('/api/integrations/status')
+      if(!r.ok)throw new Error()
+      const d=await r.json()
+      setIntegrationStatus(Array.isArray(d.integrations)?d.integrations:[])
+    }catch(_e){
+      setIntegrationStatus([])
+    }
+  },[])
+
+  useEffect(()=>{loadDeals();loadIntegrations();timer.current=setInterval(loadDeals,60000);return()=>clearInterval(timer.current)},[loadDeals,loadIntegrations])
 
   const syncSheets=async()=>{
     setSyncing(true)
-    try{const r=await fetch('/api/sheets/sync',{method:'POST',headers:{Authorization:'Bearer flowcap2024secret'}});const d=await r.json();notify(d.success?'Sheets synced':'Sync error: '+d.error,d.success?'success':'error')}
+    try{const r=await fetch('/api/sheets/manual-sync',{method:'POST'});const d=await r.json();notify(d.success?'Sheets synced':'Sync error: '+d.error,d.success?'success':'error')}
     catch(e){notify('Sync failed','error')}
     setSyncing(false)
   }
@@ -70,13 +139,16 @@ export default function App(){
   const NAV=[
     {id:'dashboard',l:'Dashboard',section:'main'},
     {id:'deals',l:'All Deals',b:todayCnt||null,section:'main'},
+    {id:'accounts',l:'Accounts',section:'main'},
+    {id:'pipeline',l:'Pipeline',section:'main'},
     {id:'uwqueue',l:'UW Queue',b:uwCount||null,section:'main'},
     {id:'contracts',l:'Contracts',b:contractCount||null,section:'main'},
     {id:'bvqueue',l:'Bank Verify Queue',b:bvCount||null,section:'main'},
     {id:'funded',l:'Funded Deals',b:fundedCount||null,section:'main'},
     {id:'renewals',l:'Renewals',b:renewalCount||null,section:'main'},
     {id:'alerts',l:'Alerts',b:alertCount||null,section:'main'},
-    {id:'brokers',l:'Brokers / ISO',section:'partners'},
+    {id:'integrations',l:'Integrations',section:'main'},
+    {id:'users',l:'Users',section:'main'},
     {id:'iso_campaigns',l:'ISO Campaigns',section:'partners'},
     {id:'merchant_campaigns',l:'Merchant Campaigns',section:'partners'},
   ]
@@ -96,7 +168,7 @@ export default function App(){
       <style>{css}</style>
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
       <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',flexDirection:'column',gap:12,background:'#f8f9fc'}}>
-        <div style={{display:'flex',alignItems:'center',gap:10}}><div style={{width:32,height:32,borderRadius:9,background:'linear-gradient(135deg,#6366f1,#a78bfa)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,fontWeight:700,color:'#fff'}}>C</div><span style={{fontSize:18,fontWeight:700,color:'#111827',letterSpacing:'-.5px'}}>CapFlow</span></div>
+        <div style={{display:'flex',alignItems:'center',gap:10}}><div style={{width:32,height:32,borderRadius:9,background:'linear-gradient(135deg,#0f766e,#14b8a6)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,fontWeight:700,color:'#fff'}}>AC</div><span style={{fontSize:18,fontWeight:700,color:'#111827',letterSpacing:'-.5px'}}>Ahava Capital CRM</span></div>
         <div style={{fontSize:11,color:'#9ca3af',letterSpacing:'1.5px',textTransform:'uppercase',fontFamily:'JetBrains Mono,monospace'}}>Loading deals...</div>
       </div>
     </>
@@ -110,13 +182,13 @@ export default function App(){
         {/* SIDEBAR */}
         <div style={{width:216,minWidth:216,height:'100%',background:'#fff',borderRight:'1px solid #e5e7eb',display:'flex',flexDirection:'column',flexShrink:0}}>
           <div style={{padding:'18px 16px 14px',borderBottom:'1px solid #e5e7eb'}}>
-            <div style={{display:'flex',alignItems:'center',gap:9}}><div style={{width:28,height:28,borderRadius:8,background:'linear-gradient(135deg,#6366f1,#a78bfa)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:700,color:'#fff'}}>C</div><div><div style={{fontSize:14,fontWeight:700,color:'#111827',letterSpacing:'-.3px'}}>CapFlow</div><div style={{fontSize:10,color:'#9ca3af',textTransform:'uppercase',letterSpacing:'1px',fontFamily:'JetBrains Mono,monospace'}}>MCA Platform</div></div></div>
+            <div style={{display:'flex',alignItems:'center',gap:9}}><div style={{width:28,height:28,borderRadius:8,background:'linear-gradient(135deg,#0f766e,#14b8a6)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:700,color:'#fff'}}>AC</div><div><div style={{fontSize:14,fontWeight:700,color:'#111827',letterSpacing:'-.3px'}}>Ahava Capital</div><div style={{fontSize:10,color:'#9ca3af',textTransform:'uppercase',letterSpacing:'1px',fontFamily:'JetBrains Mono,monospace'}}>Admin CRM</div></div></div>
           </div>
           <nav style={{flex:1,padding:'8px 0',overflowY:'auto'}}>
             <div style={{padding:'0 8px',marginBottom:4}}>
               <div style={{fontSize:10,color:'#9ca3af',textTransform:'uppercase',letterSpacing:'1.2px',padding:'8px 8px 4px',fontFamily:'JetBrains Mono,monospace',fontWeight:600}}>Workspace</div>
               {NAV.map(n=>(
-                <button key={n.id} onClick={()=>setPg(n.id)} style={{display:'flex',alignItems:'center',gap:9,padding:'8px 10px',borderRadius:7,fontSize:13,fontWeight:500,color:pg===n.id?'#6366f1':'#4b5563',cursor:'pointer',border:'none',background:pg===n.id?'rgba(99,102,241,.1)':'transparent',width:'100%',textAlign:'left',marginBottom:1,transition:'all .12s'}}>
+                <button key={n.id} onClick={()=>{if(n.id==='deals')setDealsTab('all');setPg(n.id)}} style={{display:'flex',alignItems:'center',gap:9,padding:'8px 10px',borderRadius:7,fontSize:13,fontWeight:500,color:pg===n.id?'#6366f1':'#4b5563',cursor:'pointer',border:'none',background:pg===n.id?'rgba(99,102,241,.1)':'transparent',width:'100%',textAlign:'left',marginBottom:1,transition:'all .12s'}}>
                   {n.l}{n.b>0&&<span style={{marginLeft:'auto',background:'#6366f1',color:'#fff',borderRadius:10,fontSize:10,padding:'1px 6px',fontFamily:'JetBrains Mono,monospace'}}>{n.b}</span>}
                 </button>
               ))}
@@ -124,8 +196,8 @@ export default function App(){
           </nav>
           <div style={{padding:10,borderTop:'1px solid #e5e7eb'}}>
             <div style={{display:'flex',alignItems:'center',gap:8,padding:'8px 10px',borderRadius:8,background:'#f9fafb'}}>
-              <div style={{width:28,height:28,borderRadius:'50%',background:'linear-gradient(135deg,#6366f1,#a78bfa)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:700,color:'#fff',flexShrink:0}}>JD</div>
-              <div><div style={{fontSize:12,fontWeight:600,color:'#111827'}}>Jamie Donahue</div><div style={{fontSize:10,color:'#9ca3af'}}>Internal Ops</div></div>
+              <div style={{width:28,height:28,borderRadius:'50%',background:'linear-gradient(135deg,#0f766e,#14b8a6)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:700,color:'#fff',flexShrink:0}}>IG</div>
+              <div><div style={{fontSize:12,fontWeight:600,color:'#111827'}}>Issac Grunwald</div><div style={{fontSize:10,color:'#9ca3af'}}>Admin Oversight</div></div>
             </div>
           </div>
         </div>
@@ -133,8 +205,9 @@ export default function App(){
         {/* MAIN */}
         <div style={{flex:1,minWidth:0,height:'100%',overflow:'hidden',display:'flex',flexDirection:'column'}}>
           <div style={{padding:'0 22px',height:52,minHeight:52,flexShrink:0,borderBottom:'1px solid #e5e7eb',display:'flex',alignItems:'center',gap:10,background:'#fff'}}>
-            <div style={{fontSize:14,fontWeight:600,flex:1,color:'#111827'}}>{{dashboard:'Dashboard',deals:'All Deals',uwqueue:'UW Queue',contracts:'Contracts',bvqueue:'Bank Verify Queue',funded:'Funded Deals',renewals:'Renewals',alerts:'Alerts',brokers:'Brokers / ISO',iso_campaigns:'ISO Campaigns',merchant_campaigns:'Merchant Campaigns'}[pg]||pg}</div>
+            <div style={{fontSize:14,fontWeight:600,flex:1,color:'#111827'}}>{{dashboard:'Dashboard',deals:'All Deals',accounts:'Accounts',pipeline:'Deal Pipeline',uwqueue:'UW Queue',contracts:'Contracts',bvqueue:'Bank Verify Queue',funded:'Funded Deals',renewals:'Renewals',alerts:'Alerts',integrations:'Integrations',users:'Users',iso_campaigns:'ISO Campaigns',merchant_campaigns:'Merchant Campaigns'}[pg]||pg}</div>
             {todayCnt>0&&<span style={{fontSize:11,color:'#16a34a',background:'rgba(22,163,74,.1)',border:'1px solid rgba(22,163,74,.2)',padding:'2px 8px',borderRadius:10,fontFamily:'JetBrains Mono,monospace'}}>{todayCnt} new today</span>}
+            <span style={{fontSize:10,fontWeight:700,color:'#9333ea',background:'rgba(147,51,234,.1)',border:'1px solid rgba(147,51,234,.25)',padding:'3px 8px',borderRadius:12,fontFamily:'JetBrains Mono,monospace'}}>TESTING MODE - NON LIVE (except inbox + scrub)</span>
             <div style={{display:'flex',gap:7}}>
               <Btn sm sec onClick={loadDeals}>Refresh</Btn>
               <Btn sm sec onClick={syncSheets} disabled={syncing}>{syncing?'Syncing...':'Sync Sheets'}</Btn>
@@ -142,14 +215,16 @@ export default function App(){
             </div>
           </div>
           <div style={{flex:1,minHeight:0,overflowY:'auto',padding:20}}>
-            {pg==='dashboard'&&<Dashboard deals={deals} setPg={setPg} setSel={setSel} tf={tf} tp={tp} funded={funded} todayCnt={todayCnt}/>}
-            {pg==='deals'&&<DealsList deals={deals} setSel={setSel} setShowNew={setShowNew} delDeal={delDeal}/>}
+            {pg==='dashboard'&&<Dashboard deals={deals} integrationStatus={integrationStatus} setPg={setPg} setSel={setSel} setDealsTab={setDealsTab} tf={tf} tp={tp} funded={funded} todayCnt={todayCnt}/>}
+            {pg==='deals'&&<DealsList deals={deals} tab={dealsTab} onTabChange={setDealsTab} setSel={setSel} setShowNew={setShowNew} delDeal={delDeal}/>}
+            {pg==='accounts'&&<AccountsPanel deals={deals} setSel={setSel}/>}
             {pg==='pipeline'&&<Pipeline deals={deals} setSel={setSel}/>}
             {pg==='uwqueue'&&<UWQueue deals={deals} setSel={setSel}/>}
-            {pg==='brokers'&&<Brokers deals={deals}/>}
             {pg==='contracts'&&<Contracts deals={deals} setSel={setSel}/>}
             {pg==='renewals'&&<Renewals deals={deals} setSel={setSel}/>}
             {pg==='alerts'&&<Alerts deals={deals} setSel={setSel}/>}
+            {pg==='integrations'&&<IntegrationsPanel integrations={integrationStatus}/>}
+            {pg==='users'&&<UsersPanel deals={deals}/>}
             {pg==='bvqueue'&&<BVQueue deals={deals} setSel={setSel} onUpdate={updDeal} notify={notify}/>}
             {pg==='funded'&&<FundedDeals deals={deals} setSel={setSel}/>}
             {pg==='iso_campaigns'&&<ISOCampaigns deals={deals}/>}
@@ -189,7 +264,7 @@ function Sbar({val,color}){
 }
 
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
-function Dashboard({deals,setPg,setSel,tf,tp,funded,todayCnt}){
+function Dashboard({deals,integrationStatus,setPg,setSel,setDealsTab,tf,tp,funded,todayCnt}){
   const declined=deals.filter(d=>d.status==='declined').length
   const closed=deals.filter(d=>['funded','declined'].includes(d.status))
   const apr=closed.length>0?Math.round(funded.length/closed.length*100):0
@@ -198,6 +273,22 @@ function Dashboard({deals,setPg,setSel,tf,tp,funded,todayCnt}){
   const pending=deals.filter(d=>d.status==='pending')
   const uw=deals.filter(d=>d.status==='underwriting')
   const pipeline=['new','scrubbing','underwriting','pending','offered','docs','contracts','bankverify']
+  const merchantCount=new Set(deals.map(d=>(d.email||'').toLowerCase()).filter(Boolean)).size
+  const brokerCount=new Set(deals.map(d=>(d.broker||'').toLowerCase()).filter(Boolean)).size
+  const workflowRows=deals.slice(0,12).map(d=>{
+    const noteText=(d.uwNotes||[]).map(n=>n.text||'').join(' ')
+    return{
+      id:d.id,
+      business:d.business,
+      status:d.status,
+      broker:d.broker,
+      merchant:d.email||'--',
+      contractSent:d.status==='contracts'||d.status==='bankverify'||d.status==='funded'||noteText.includes('KYC_COMPLETE_AND_CONTRACTS_GENERATED'),
+      bankVerify:d.status==='bankverify'||d.status==='funded'||noteText.includes('PLAID_BANK_VERIFICATION_COMPLETED'),
+      merchantLink:noteText.includes('MERCHANT_ONBOARDING_LINK'),
+      brokerLink:noteText.includes('BROKER_PORTAL_LINK')
+    }
+  })
   const th={textAlign:'left',padding:'7px 10px',fontSize:10,color:'#9ca3af',textTransform:'uppercase',letterSpacing:'.8px',borderBottom:'1px solid #f1f4f9',fontWeight:600,fontFamily:'JetBrains Mono,monospace'}
   const td={padding:'10px 10px'}
   return(
@@ -215,7 +306,7 @@ function Dashboard({deals,setPg,setSel,tf,tp,funded,todayCnt}){
       {today.length>0&&<div style={{marginBottom:14,padding:'10px 14px',background:'rgba(22,163,74,.05)',border:'1px solid rgba(22,163,74,.2)',borderRadius:10,display:'flex',alignItems:'center',gap:10}}>
         <span style={{width:7,height:7,borderRadius:'50%',background:'#16a34a',display:'block',flexShrink:0}}/>
         <div style={{flex:1,fontSize:13}}><span style={{fontWeight:600,color:'#16a34a'}}>{today.length} new submission{today.length!==1?'s':''} today: </span><span style={{color:'#9ca3af'}}>{today.slice(0,4).map(d=>d.business).join(', ')}{today.length>4?' ...':''}</span></div>
-        <Btn sm sec onClick={()=>setPg('deals')}>View All</Btn>
+        <Btn sm sec onClick={()=>{setDealsTab('today');setPg('deals')}}>View All</Btn>
       </div>}
 
       {/* ALERTS ROW */}
@@ -238,13 +329,17 @@ function Dashboard({deals,setPg,setSel,tf,tp,funded,todayCnt}){
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14,marginBottom:14}}>
         {/* WORKFLOW PIPELINE */}
         <Card>
-          <div style={{fontSize:13,fontWeight:700,marginBottom:12}}>Workflow Pipeline</div>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+            <div style={{fontSize:13,fontWeight:700}}>Workflow Pipeline</div>
+            <Btn sm sec onClick={()=>setPg('pipeline')}>Board</Btn>
+          </div>
+          <div style={{fontSize:11,color:'#9ca3af',marginBottom:10}}>Click a stage to open All Deals filtered to that status.</div>
           {pipeline.map(s=>{
             const cnt=deals.filter(d=>d.status===s).length
             const total=deals.length||1
             const pct=Math.round(cnt/total*100)
             return(
-              <div key={s} style={{marginBottom:8}}>
+              <div key={s} onClick={()=>{setDealsTab(s);setPg('deals')}} style={{marginBottom:8,cursor:'pointer',borderRadius:8,padding:'4px 6px',marginLeft:-6,marginRight:-6,transition:'background .12s'}} onMouseEnter={e=>e.currentTarget.style.background='#f9fafb'} onMouseLeave={e=>e.currentTarget.style.background=''} title={'View '+SL[s]+' in All Deals'}>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:3}}>
                   <StatusPill status={s}/>
                   <span style={{fontSize:12,fontFamily:'JetBrains Mono,monospace',fontWeight:700,color:'#374151'}}>{cnt}</span>
@@ -261,7 +356,7 @@ function Dashboard({deals,setPg,setSel,tf,tp,funded,todayCnt}){
         <Card>
           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
             <div style={{fontSize:13,fontWeight:700}}>Recent Submissions</div>
-            <Btn sm sec onClick={()=>setPg('deals')}>View All</Btn>
+            <Btn sm sec onClick={()=>{setDealsTab('all');setPg('deals')}}>View All</Btn>
           </div>
           {deals.slice(0,6).map(d=>(
             <div key={d.id} onClick={()=>setSel(d)} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:'1px solid #f9fafb',cursor:'pointer'}} onMouseEnter={e=>e.currentTarget.style.background='#fafafa'} onMouseLeave={e=>e.currentTarget.style.background=''}>
@@ -283,20 +378,18 @@ function Dashboard({deals,setPg,setSel,tf,tp,funded,todayCnt}){
 
       {/* BOTTOM ROW */}
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
-        {/* TOP BROKERS */}
+        {/* ADMIN OVERSIGHT */}
         <Card>
-          <div style={{fontSize:13,fontWeight:700,marginBottom:12}}>Top Brokers / ISO</div>
-          {(()=>{
-            const bmap={}
-            deals.forEach(d=>{if(!d.broker||d.broker==='Unknown')return;if(!bmap[d.broker])bmap[d.broker]={name:d.broker,total:0,funded:0,volume:0};bmap[d.broker].total++;if(d.status==='funded'){bmap[d.broker].funded++;bmap[d.broker].volume+=d.amount||0}})
-            return Object.values(bmap).sort((a,b)=>b.total-a.total).slice(0,5).map((b,i)=>(
-              <div key={b.name} style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
-                <div style={{width:22,height:22,borderRadius:'50%',background:'linear-gradient(135deg,#6366f1,#a78bfa)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,color:'#fff',flexShrink:0}}>{i+1}</div>
-                <div style={{flex:1,minWidth:0}}><div style={{fontSize:13,fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{b.name}</div><div style={{fontSize:11,color:'#9ca3af'}}>{b.total} deals · {b.funded} funded</div></div>
-                <div style={{fontSize:12,fontFamily:'JetBrains Mono,monospace',fontWeight:600,color:'#16a34a'}}>{f$(b.volume)}</div>
+          <div style={{fontSize:13,fontWeight:700,marginBottom:12}}>Admin Oversight</div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:12}}>
+            {[{l:'Merchants',v:merchantCount,c:'#0f766e'},{l:'Brokers',v:brokerCount,c:'#0f766e'},{l:'Contracts Sent',v:deals.filter(d=>['contracts','bankverify','funded'].includes(d.status)).length,c:'#6366f1'},{l:'Bank Verify',v:deals.filter(d=>d.status==='bankverify').length,c:'#d97706'}].map((m,i)=>(
+              <div key={i} style={{background:'#f9fafb',border:'1px solid #e5e7eb',borderRadius:8,padding:'10px 12px'}}>
+                <div style={{fontSize:10,color:'#9ca3af',textTransform:'uppercase',fontFamily:'JetBrains Mono,monospace'}}>{m.l}</div>
+                <div style={{fontSize:18,fontWeight:700,color:m.c,marginTop:3}}>{m.v}</div>
               </div>
-            ))
-          })()}
+            ))}
+          </div>
+          <div style={{fontSize:11,color:'#9ca3af'}}>Use <strong>Accounts</strong> (broker roll-up), <strong>All Deals</strong>, <strong>Contracts</strong>, and <strong>Bank Verify Queue</strong> for full backend review.</div>
         </Card>
 
         {/* AUTOMATION STATUS */}
@@ -307,9 +400,8 @@ function Dashboard({deals,setPg,setSel,tf,tp,funded,todayCnt}){
             {l:'Document parser',s:'Reads bank statements automatically',ok:true},
             {l:'AI scrubber',s:'Underwrites each deal independently',ok:true},
             {l:'Google Sheets sync',s:'Updates CRM sheet every 15 min',ok:true},
-            {l:'DocuSign',s:'Contract signing — setup needed',ok:false},
-            {l:'NY Courts API',s:'Background check — stub only',ok:false},
-            {l:'DataMerch API',s:'MCA history check — stub only',ok:false},
+            ...((integrationStatus||[]).map(i=>({l:i.label,s:i.needed,ok:i.status==='configured'}))),
+            {l:'Broker approval portal',s:'Sandbox test mode only — non-live links + test uploads',ok:false},
           ].map((i,x)=>(
             <div key={x} style={{display:'flex',alignItems:'center',gap:10,marginBottom:9}}>
               <span style={{width:7,height:7,borderRadius:'50%',background:i.ok?'#16a34a':'#e5e7eb',display:'block',flexShrink:0,border:i.ok?'none':'2px solid #d1d5db'}}/>
@@ -319,19 +411,43 @@ function Dashboard({deals,setPg,setSel,tf,tp,funded,todayCnt}){
           ))}
         </Card>
       </div>
+
+      {/* WORKFLOW MONITOR */}
+      <Card style={{marginTop:14}} p={0}>
+        <div style={{padding:'14px 16px',borderBottom:'1px solid #f1f4f9',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <div style={{fontSize:13,fontWeight:700}}>Admin Workflow Monitor (Testing)</div>
+          <Btn sm sec onClick={()=>setPg('deals')}>Open All Deals</Btn>
+        </div>
+        <table style={{width:'100%',borderCollapse:'collapse'}}>
+          <thead><tr>{['Deal','Broker','Merchant','Status','Broker Link','Merchant Link','Contracts','Bank Verify'].map(h=><th key={h} style={{textAlign:'left',padding:'8px 10px',fontSize:10,color:'#9ca3af',textTransform:'uppercase',fontFamily:'JetBrains Mono,monospace',borderBottom:'1px solid #f1f4f9'}}>{h}</th>)}</tr></thead>
+          <tbody>
+            {workflowRows.map(r=>(
+              <tr key={r.id} style={{cursor:'pointer'}} onClick={()=>{const d=deals.find(x=>x.id===r.id);if(d)setSel(d)}}>
+                <td style={{padding:'9px 10px',fontSize:12,fontWeight:600}}>{r.business}</td>
+                <td style={{padding:'9px 10px',fontSize:12,color:'#6b7280'}}>{r.broker}</td>
+                <td style={{padding:'9px 10px',fontSize:12,color:'#6b7280'}}>{r.merchant}</td>
+                <td style={{padding:'9px 10px'}}><StatusPill status={r.status}/></td>
+                <td style={{padding:'9px 10px',fontSize:11,color:r.brokerLink?'#16a34a':'#9ca3af',fontFamily:'JetBrains Mono,monospace'}}>{r.brokerLink?'SENT':'NO'}</td>
+                <td style={{padding:'9px 10px',fontSize:11,color:r.merchantLink?'#16a34a':'#9ca3af',fontFamily:'JetBrains Mono,monospace'}}>{r.merchantLink?'SENT':'NO'}</td>
+                <td style={{padding:'9px 10px',fontSize:11,color:r.contractSent?'#16a34a':'#9ca3af',fontFamily:'JetBrains Mono,monospace'}}>{r.contractSent?'YES':'NO'}</td>
+                <td style={{padding:'9px 10px',fontSize:11,color:r.bankVerify?'#16a34a':'#9ca3af',fontFamily:'JetBrains Mono,monospace'}}>{r.bankVerify?'YES':'NO'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
     </div>
   )
 }
 
 // ─── DEALS LIST ───────────────────────────────────────────────────────────────
-function DealsList({deals,setSel,setShowNew,delDeal}){
-  const [tab,setTab]=useState('all')
+function DealsList({deals,tab,onTabChange,setSel,setShowNew,delDeal}){
   const [srch,setSrch]=useState('')
   const [sc,setSc]=useState('submitted')
   const [sd,setSd]=useState('desc')
-  const tabs=[{id:'all',l:'All',n:deals.length},{id:'today',l:'Today',n:deals.filter(d=>isToday(d.submittedAt)).length},{id:'offered',l:'Offered',n:deals.filter(d=>d.status==='offered').length},{id:'underwriting',l:'Underwriting',n:deals.filter(d=>d.status==='underwriting').length},{id:'pending',l:'On Hold',n:deals.filter(d=>d.status==='pending').length},{id:'funded',l:'Funded',n:deals.filter(d=>d.status==='funded').length},{id:'declined',l:'Declined',n:deals.filter(d=>d.status==='declined').length}]
+  const tabs=[{id:'all',l:'All',n:deals.length},{id:'today',l:'Today',n:deals.filter(d=>isToday(d.submittedAt)).length},{id:'new',l:'New',n:deals.filter(d=>d.status==='new').length},{id:'scrubbing',l:'Scrubbing',n:deals.filter(d=>d.status==='scrubbing').length},{id:'underwriting',l:'Underwriting',n:deals.filter(d=>d.status==='underwriting').length},{id:'pending',l:'On Hold',n:deals.filter(d=>d.status==='pending').length},{id:'offered',l:'Offered',n:deals.filter(d=>d.status==='offered').length},{id:'docs',l:'Docs Out',n:deals.filter(d=>d.status==='docs').length},{id:'contracts',l:'Contracts',n:deals.filter(d=>d.status==='contracts').length},{id:'bankverify',l:'Bank Verify',n:deals.filter(d=>d.status==='bankverify').length},{id:'funded',l:'Funded',n:deals.filter(d=>d.status==='funded').length},{id:'declined',l:'Declined',n:deals.filter(d=>d.status==='declined').length}]
   const filtered=deals.filter(d=>{
-    if(srch){const s=srch.toLowerCase();if(!d.business.toLowerCase().includes(s)&&!d.id.toLowerCase().includes(s)&&!d.broker.toLowerCase().includes(s))return false}
+    if(srch){const s=srch.toLowerCase();const biz=(d.business||'').toLowerCase();const bid=(String(d.id)||'').toLowerCase();const br=(d.broker||'').toLowerCase();if(!biz.includes(s)&&!bid.includes(s)&&!br.includes(s))return false}
     if(tab==='today')return isToday(d.submittedAt)
     if(tab!=='all')return d.status===tab
     return true
@@ -348,7 +464,7 @@ function DealsList({deals,setSel,setShowNew,delDeal}){
         <Btn onClick={()=>setShowNew(true)}>+ New Deal</Btn>
       </div>
       <div style={{display:'flex',borderBottom:'1px solid #e5e7eb',marginBottom:14,overflowX:'auto'}}>
-        {tabs.map(t=><div key={t.id} onClick={()=>setTab(t.id)} style={{padding:'7px 14px',fontSize:12,cursor:'pointer',borderBottom:tab===t.id?'2px solid #6366f1':'2px solid transparent',color:tab===t.id?'#6366f1':'#9ca3af',fontWeight:tab===t.id?600:400,whiteSpace:'nowrap',marginBottom:-1}}>{t.l} <span style={{fontSize:10,fontFamily:'JetBrains Mono,monospace',opacity:.7}}>{t.n}</span></div>)}
+        {tabs.map(t=><div key={t.id} onClick={()=>onTabChange(t.id)} style={{padding:'7px 14px',fontSize:12,cursor:'pointer',borderBottom:tab===t.id?'2px solid #6366f1':'2px solid transparent',color:tab===t.id?'#6366f1':'#9ca3af',fontWeight:tab===t.id?600:400,whiteSpace:'nowrap',marginBottom:-1}}>{t.l} <span style={{fontSize:10,fontFamily:'JetBrains Mono,monospace',opacity:.7}}>{t.n}</span></div>)}
       </div>
       <Card p={0}>
         <table style={{width:'100%',borderCollapse:'collapse'}}>
@@ -377,7 +493,7 @@ function DealsList({deals,setSel,setShowNew,delDeal}){
 
 // ─── PIPELINE ─────────────────────────────────────────────────────────────────
 function Pipeline({deals,setSel}){
-  const stages=['new','scrubbing','underwriting','pending','offered','docs','contracts','bankverify']
+  const stages=['new','scrubbing','underwriting','pending','offered','docs','contracts','bankverify','funded','declined']
   return(
     <div style={{display:'flex',gap:10,overflowX:'auto',alignItems:'flex-start',paddingBottom:8}}>
       {stages.map(s=>{
@@ -432,48 +548,21 @@ function UWQueue({deals,setSel}){
   )
 }
 
-// ─── BROKERS ──────────────────────────────────────────────────────────────────
-function Brokers({deals}){
-  const [sel,setSel]=useState(null)
-  const bmap={}
-  deals.forEach(d=>{const k=d.broker;if(!k||k==='Unknown')return;if(!bmap[k])bmap[k]={name:k,total:0,funded:0,declined:0,volume:0,active:0};bmap[k].total++;if(d.status==='funded'){bmap[k].funded++;bmap[k].volume+=d.amount||0}if(d.status==='declined')bmap[k].declined++;if(!['funded','declined'].includes(d.status))bmap[k].active++})
-  const brokers=Object.values(bmap).sort((a,b)=>b.total-a.total)
-  return(
-    <div style={{display:'grid',gridTemplateColumns:'230px 1fr',gap:14}}>
-      <div>
-        <div style={{fontSize:10,color:'#9ca3af',fontFamily:'JetBrains Mono,monospace',textTransform:'uppercase',letterSpacing:'1px',marginBottom:10}}>{brokers.length} ISO shops</div>
-        {brokers.map(b=>(
-          <div key={b.name} onClick={()=>setSel(b)} style={{background:'#fff',border:'1px solid '+(sel?.name===b.name?'#6366f1':'#e5e7eb'),borderRadius:10,padding:'10px 12px',cursor:'pointer',marginBottom:8,transition:'border-color .15s'}}>
-            <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}><div style={{width:26,height:26,borderRadius:'50%',background:'linear-gradient(135deg,#6366f1,#a78bfa)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,color:'#fff',flexShrink:0}}>{b.name.slice(0,2).toUpperCase()}</div><div style={{fontSize:13,fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{b.name}</div></div>
-            <div style={{display:'flex',gap:10,fontSize:11,fontFamily:'JetBrains Mono,monospace'}}><span style={{color:'#9ca3af'}}>Deals: <span style={{color:'#111827',fontWeight:700}}>{b.total}</span></span><span style={{color:'#9ca3af'}}>Funded: <span style={{color:'#16a34a',fontWeight:700}}>{b.funded}</span></span></div>
-          </div>
-        ))}
-      </div>
-      {sel?(
-        <div>
-          <Card style={{marginBottom:12}}>
-            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}><div style={{width:38,height:38,borderRadius:'50%',background:'linear-gradient(135deg,#6366f1,#a78bfa)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:700,color:'#fff'}}>{sel.name.slice(0,2).toUpperCase()}</div><div style={{fontSize:16,fontWeight:700}}>{sel.name}</div></div>
-            <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10}}>
-              {[{l:'Volume',v:f$(sel.volume),c:'#6366f1'},{l:'Funded',v:sel.funded,c:'#16a34a'},{l:'Active',v:sel.active,c:'#d97706'},{l:'Conversion',v:sel.total>0?Math.round(sel.funded/sel.total*100)+'%':'0%'}].map((s,i)=><div key={i} style={{background:'#f9fafb',border:'1px solid #e5e7eb',borderRadius:8,padding:'10px 12px'}}><div style={{fontSize:10,color:'#9ca3af',textTransform:'uppercase',letterSpacing:'.5px',fontWeight:500,marginBottom:2}}>{s.l}</div><div style={{fontSize:18,fontWeight:700,color:s.c||'#111827'}}>{s.v}</div></div>)}
-            </div>
-          </Card>
-          <Card p={0}>
-            <table style={{width:'100%',borderCollapse:'collapse'}}>
-              <thead><tr>{['ID','Business','Amount','Status','Risk'].map(h=><th key={h} style={{textAlign:'left',padding:'7px 12px',fontSize:10,color:'#9ca3af',textTransform:'uppercase',letterSpacing:'.8px',borderBottom:'1px solid #f1f4f9',fontWeight:600,fontFamily:'JetBrains Mono,monospace'}}>{h}</th>)}</tr></thead>
-              <tbody>{deals.filter(d=>d.broker===sel.name).map(d=>(
-                <tr key={d.id} style={{borderBottom:'1px solid #f9fafb'}}><td style={{padding:'10px 12px',fontFamily:'JetBrains Mono,monospace',fontSize:11,color:'#9ca3af'}}>{d.id}</td><td style={{padding:'10px 12px',fontWeight:600,fontSize:13}}>{d.business}</td><td style={{padding:'10px 12px',fontFamily:'JetBrains Mono,monospace',fontSize:12,color:d.amount?'#6366f1':'#9ca3af',fontWeight:600}}>{d.amount?f$(d.amount):f$(d.requested)}</td><td style={{padding:'10px 12px'}}><StatusPill status={d.status}/></td><td style={{padding:'10px 12px'}}>{d.risk!=null?<span style={{fontSize:12,fontFamily:'JetBrains Mono,monospace',fontWeight:700,color:rc(d.risk)}}>{d.risk}</span>:'--'}</td></tr>
-              ))}</tbody>
-            </table>
-          </Card>
-        </div>
-      ):<div style={{textAlign:'center',padding:48,color:'#9ca3af'}}>Select a broker to view their deals</div>}
-    </div>
-  )
-}
-
 // ─── CONTRACTS ────────────────────────────────────────────────────────────────
 function Contracts({deals,setSel}){
   const cd=deals.filter(d=>['offered','contracts','bankverify','funded'].includes(d.status))
+  const sendApproval=async(e,d)=>{
+    e.stopPropagation()
+    try{
+      const r=await fetch('/api/deals/send-approval',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({dbId:d.dbId})})
+      const j=await r.json().catch(()=>({}))
+      if(!r.ok)throw new Error(j.sendGridMessage||j.error||('HTTP '+r.status))
+      setSel({...d,status:j.status||'contracts'})
+      alert(j.sent?'Approval email sent with confirm link.':(j.error||'Approval could not be sent.'))
+    }catch(err){
+      alert('Could not send approval: '+(err.message||'unknown error'))
+    }
+  }
   return(
     <div>
       <div style={{marginBottom:14,fontSize:13,color:'#9ca3af'}}>DocuSign integration — contracts auto-generated on offer acceptance</div>
@@ -482,7 +571,7 @@ function Contracts({deals,setSel}){
           <div style={{flex:1}}><div style={{fontWeight:700,fontSize:14}}>{d.business}</div><div style={{fontSize:11,color:'#9ca3af',fontFamily:'JetBrains Mono,monospace',marginTop:2}}>{d.id} · {d.broker}</div></div>
           <div style={{textAlign:'right'}}><div style={{fontFamily:'JetBrains Mono,monospace',fontWeight:700,fontSize:14,color:'#6366f1'}}>{f$(d.amount)}</div><div style={{fontSize:11,color:'#9ca3af'}}>{fx(d.factor)} · 1.499x sell</div></div>
           <StatusPill status={d.status}/>
-          {d.status==='offered'&&<Btn sm onClick={e=>{e.stopPropagation()}}>Send Contract</Btn>}
+          {d.status==='offered'&&<Btn sm onClick={e=>sendApproval(e,d)}>Send Approval</Btn>}
         </Card>
       ))}
       {!cd.length&&<div style={{textAlign:'center',padding:32,color:'#9ca3af'}}>No contracts yet</div>}
@@ -498,13 +587,104 @@ function DealDetail({deal,onClose,onUpdate,onDelete,onRefresh,notify}){
   const [docsLoading,setDocsLoading]=useState(false)
   const [ncat,setNcat]=useState('general')
   const [busy,setBusy]=useState('')
+  const [brokerLink,setBrokerLink]=useState('')
+  const [merchantLink,setMerchantLink]=useState('')
   const [confirmDel,setConfirmDel]=useState(false)
   const si=STEPS.indexOf(deal.status)
 
   const api=async(path,body)=>{const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});if(!r.ok)throw new Error('HTTP '+r.status);return r.json()}
   const advance=async()=>{const next=NS[deal.status];if(!next||!deal.dbId)return;setBusy('advance');try{await api('/api/deals/update',{dbId:deal.dbId,status:next});onUpdate({...deal,status:next});notify('Advanced to '+SL[next])}catch(e){notify('Failed','error')}setBusy('')}
-  const decline=async()=>{if(!deal.dbId)return;setBusy('decline');try{await api('/api/deals/update',{dbId:deal.dbId,status:'declined'});onUpdate({...deal,status:'declined'});notify('Deal declined');onClose()}catch(e){notify('Failed','error')}setBusy('')}
+  const decline=async()=>{if(!deal.dbId)return;const declineReason=window.prompt('Optional decline reason (will be included in testing email):','')||'';setBusy('decline');try{await api('/api/deals/update',{dbId:deal.dbId,status:'declined',declineReason});onUpdate({...deal,status:'declined'});notify('Deal declined and testing email sent to broker');onClose()}catch(e){notify('Failed','error')}setBusy('')}
   const fund=async()=>{if(!deal.dbId)return;setBusy('fund');try{await api('/api/deals/update',{dbId:deal.dbId,status:'funded'});onUpdate({...deal,status:'funded'});notify('Deal funded!');onClose()}catch(e){notify('Failed','error')}setBusy('')}
+  const sendApproval=async()=>{
+    if(!deal.dbId)return
+    setBusy('send-approval')
+    try{
+      const r=await fetch('/api/deals/send-approval',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({dbId:deal.dbId})})
+      const j=await r.json().catch(()=>({}))
+      if(!r.ok)throw new Error(j.sendGridMessage||j.error||('HTTP '+r.status))
+      onUpdate({...deal,status:j.status||'contracts'})
+      notify(j.sent?'Approval email sent with confirm offer link.':(j.error||'Approval could not be sent.'))
+    }catch(e){
+      notify('Could not send approval: '+(e.message||''),'error')
+    }
+    setBusy('')
+  }
+  const genBrokerSandboxLink=async()=>{
+    if(!deal.dbId)return
+    setBusy('broker-link')
+    try{
+      const d=await api('/api/broker/sandbox/create-link',{dbId:deal.dbId})
+      setBrokerLink(d.link||'')
+      notify('Sandbox broker link created (test only)')
+    }catch(e){
+      notify('Could not create broker link','error')
+    }
+    setBusy('')
+  }
+  const genMerchantOnboardingLink=async()=>{
+    if(!deal.dbId)return
+    setBusy('merchant-link')
+    try{
+      const d=await api('/api/merchant/sandbox/create-link',{dbId:deal.dbId})
+      setMerchantLink(d.link||'')
+      notify('Merchant onboarding link created (test only)')
+    }catch(e){
+      notify('Could not create merchant link','error')
+    }
+    setBusy('')
+  }
+  const openTestEmailDraft=()=>{
+    if(!brokerLink){notify('Create broker test link first','error');return}
+    const to=deal.email||''
+    const subj=encodeURIComponent(`TEST: Deal Update - ${deal.business} (${deal.id})`)
+    const body=encodeURIComponent(
+`Hi ${deal.broker||'Broker'},
+
+This is a TEST workflow email (not live).
+
+Deal: ${deal.business}
+Deal #: ${deal.id}
+Status: ${deal.status}
+Approved Amount: ${deal.amount?f$(deal.amount):'N/A'}
+
+Broker test portal link:
+${brokerLink}
+
+Use this link to review the deal and submit VC + ID in sandbox mode.
+
+Thanks,
+Ahava CRM (Testing)`
+    )
+    window.open(`mailto:${to}?subject=${subj}&body=${body}`,'_blank')
+  }
+  const openMerchantInviteEmailDraft=(target='merchant')=>{
+    if(!merchantLink){notify('Create merchant onboarding link first','error');return}
+    const to=target==='broker'?(deal.brokerEmail||''):(deal.email||'')
+    const label=target==='broker'?'Broker Shop':'Merchant'
+    const subj=encodeURIComponent(`TEST: Merchant Onboarding Link - ${deal.business} (${deal.id})`)
+    const body=encodeURIComponent(
+`Hi ${target==='broker'?(deal.broker||'Broker Team'):(deal.contact||'Merchant')},
+
+This is a TEST onboarding email (${label} copy).
+
+Deal: ${deal.business}
+Deal #: ${deal.id}
+Approved Amount: ${deal.amount?f$(deal.amount):'N/A'}
+
+Merchant onboarding link:
+${merchantLink}
+
+Flow (testing):
+1) Merchant uploads VC + Photo ID
+2) Contracts are generated
+3) Merchant receives Plaid bank verification link
+
+Thanks,
+Ahava CRM (Testing)`
+    )
+    window.open(`mailto:${to}?subject=${subj}&body=${body}`,'_blank')
+  }
   const scrub=async()=>{
     if(!deal.dbId)return
     setBusy('scrub')
@@ -545,6 +725,21 @@ function DealDetail({deal,onClose,onUpdate,onDelete,onRefresh,notify}){
         .catch(()=>setDocsLoading(false))
     }
   },[tab,deal.dbId])
+
+  // Load underwriting notes on demand (after opening a deal) to keep dashboard fast.
+  useEffect(()=>{
+    if(!deal.dbId)return
+    let ignore=false
+    fetch('/api/deals/notes?dealId='+deal.dbId)
+      .then(r=>r.ok?r.json():Promise.reject(new Error('HTTP '+r.status)))
+      .then(d=>{
+        if(ignore)return
+        const notes=Array.isArray(d.notes)?d.notes.map(noteFromApi):[]
+        onUpdate({...deal,uwNotes:notes})
+      })
+      .catch(()=>{})
+    return()=>{ignore=true}
+  },[deal.dbId])
 
   const flags=[]
   if(deal.nyCourt&&deal.nyCourt!=='clean')flags.push({t:'red',x:'NY Courts: '+deal.nyCourt})
@@ -590,6 +785,24 @@ function DealDetail({deal,onClose,onUpdate,onDelete,onRefresh,notify}){
                 {[{l:'Buy rate',v:fx(deal.factor)},{l:'Sell rate',v:'1.499x'},{l:'Term',v:(deal.termDays||'--')+' days'},{l:'Our profit',v:f$(deal.profit),g:true},{l:'Payback',v:f$(deal.payback)},{l:'Daily pmnt',v:f$(deal.payback&&deal.termDays?Math.round(deal.payback/deal.termDays):null)}].map((m,i)=>(
                   <div key={i}><div style={{fontSize:10,color:'#9ca3af',textTransform:'uppercase',fontFamily:'JetBrains Mono,monospace'}}>{m.l}</div><div style={{fontSize:13,fontWeight:700,fontFamily:'JetBrains Mono,monospace',color:m.g?'#16a34a':'#111827',marginTop:2}}>{m.v}</div></div>
                 ))}
+              </div>
+              <div style={{marginTop:12,paddingTop:10,borderTop:'1px dashed rgba(99,102,241,.25)'}}>
+                <div style={{fontSize:11,color:'#9333ea',fontWeight:700,marginBottom:8}}>SANDBOX TEST FLOW (not live)</div>
+                <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+                  <Btn sm sec onClick={genBrokerSandboxLink} disabled={busy==='broker-link'}>{busy==='broker-link'?'Creating link...':'Create Broker Test Link'}</Btn>
+                  {brokerLink&&<a href={brokerLink} target="_blank" rel="noreferrer" style={{fontSize:11,color:'#6366f1',fontFamily:'JetBrains Mono,monospace',textDecoration:'none'}}>{brokerLink}</a>}
+                  {brokerLink&&<Btn sm sec onClick={()=>{navigator.clipboard?.writeText(brokerLink);notify('Link copied')}}>Copy Link</Btn>}
+                  {brokerLink&&<Btn sm sec onClick={openTestEmailDraft}>Open Test Email Draft</Btn>}
+                </div>
+                <div style={{fontSize:11,color:'#9ca3af',marginTop:6}}>Broker can view approval, enter sell rate (1.40-1.55 max 12% spread), and submit VC/ID file names to request contracts in sandbox mode.</div>
+                <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap',marginTop:10}}>
+                  <Btn sm sec onClick={genMerchantOnboardingLink} disabled={busy==='merchant-link'}>{busy==='merchant-link'?'Creating link...':'Create Merchant Onboarding Link'}</Btn>
+                  {merchantLink&&<a href={merchantLink} target="_blank" rel="noreferrer" style={{fontSize:11,color:'#0f766e',fontFamily:'JetBrains Mono,monospace',textDecoration:'none'}}>{merchantLink}</a>}
+                  {merchantLink&&<Btn sm sec onClick={()=>{navigator.clipboard?.writeText(merchantLink);notify('Merchant link copied')}}>Copy Merchant Link</Btn>}
+                  {merchantLink&&<Btn sm sec onClick={()=>openMerchantInviteEmailDraft('merchant')}>Draft Merchant Email</Btn>}
+                  {merchantLink&&<Btn sm sec onClick={()=>openMerchantInviteEmailDraft('broker')}>Draft Broker-Shop Email</Btn>}
+                </div>
+                <div style={{fontSize:11,color:'#9ca3af',marginTop:6}}>Merchant flow (testing): upload VC + Photo ID -&gt; deal moves to Contracts -&gt; Plaid verification link is shown.</div>
               </div>
             </div>
           )}
@@ -826,7 +1039,7 @@ function DealDetail({deal,onClose,onUpdate,onDelete,onRefresh,notify}){
           <div style={{height:1,background:'#e5e7eb',margin:'14px 0'}}/>
           <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
             {['new','scrubbing','underwriting','pending'].includes(deal.status)&&<Btn amber onClick={scrub} disabled={busy==='scrub'}>{busy==='scrub'?'Scrubbing...':'⚡ Run AI Scrub'}</Btn>}
-            {deal.status==='offered'&&<Btn onClick={()=>{onUpdate({...deal,status:'contracts'});notify('Moved to contracts')}}>Send Contract</Btn>}
+            {deal.status==='offered'&&<Btn onClick={sendApproval} disabled={busy==='send-approval'}>{busy==='send-approval'?'Sending...':'Send Approval'}</Btn>}
             {deal.status==='bankverify'&&<Btn grn onClick={fund} disabled={busy==='fund'}>{busy==='fund'?'...':'✓ Mark Funded'}</Btn>}
             {!['funded','declined'].includes(deal.status)&&NS[deal.status]&&<Btn sec onClick={advance} disabled={busy==='advance'}>{busy==='advance'?'...':'Advance → '+SL[NS[deal.status]]}</Btn>}
             {!['funded','declined'].includes(deal.status)&&<Btn red sec onClick={decline} disabled={busy==='decline'}>{busy==='decline'?'...':'Decline'}</Btn>}
@@ -1117,6 +1330,232 @@ function Alerts({deals,setSel}){
         </div>
       ))}
     </Card>
+  )
+}
+
+// ─── ACCOUNTS ─────────────────────────────────────────────────────────────────
+function AccountsPanel({deals,setSel}){
+  const [tab,setTab]=useState('brokers')
+  const [q,setQ]=useState('')
+  const text=(q||'').toLowerCase().trim()
+
+  const brokerMap={}
+  deals.forEach(d=>{
+    const key=(d.broker||'').trim()
+    if(!key||key==='Unknown')return
+    if(!brokerMap[key]) brokerMap[key]={name:key,email:d.brokerEmail||'',total:0,active:0,funded:0,volume:0,last:''}
+    const b=brokerMap[key]
+    b.total++
+    if(!['funded','declined'].includes(d.status)) b.active++
+    if(d.status==='funded'){b.funded++;b.volume+=(d.amount||0)}
+    if(!b.last||new Date(d.submittedAt||0)>new Date(b.last||0)) b.last=d.submittedAt||b.last
+  })
+  const brokers=Object.values(brokerMap)
+    .filter(b=>!text||b.name.toLowerCase().includes(text)||(b.email||'').toLowerCase().includes(text))
+    .sort((a,b)=>b.total-a.total)
+
+  const merchMap={}
+  deals.forEach(d=>{
+    const key=(d.email||'').trim().toLowerCase()
+    if(!key)return
+    if(!merchMap[key]) merchMap[key]={email:key,name:d.contact||'Merchant',businesses:new Set(),total:0,active:0,funded:0,last:'',latestDeal:null}
+    const m=merchMap[key]
+    m.total++
+    m.businesses.add(d.business||'Unknown')
+    if(!['funded','declined'].includes(d.status))m.active++
+    if(d.status==='funded')m.funded++
+    if(!m.last||new Date(d.submittedAt||0)>new Date(m.last||0)){m.last=d.submittedAt||m.last;m.latestDeal=d}
+  })
+  const merchants=Object.values(merchMap)
+    .map(m=>({...m,businessCount:m.businesses.size}))
+    .filter(m=>!text||m.email.includes(text)||(m.name||'').toLowerCase().includes(text))
+    .sort((a,b)=>b.total-a.total)
+
+  return(
+    <div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:14}}>
+        <Stat label="Broker Accounts" value={brokers.length} sub="unique brokers"/>
+        <Stat label="Merchant Accounts" value={merchants.length} sub="unique merchant emails"/>
+        <Stat label="Broker Active Deals" value={brokers.reduce((s,b)=>s+b.active,0)} sub="not funded/declined" color="#0f766e"/>
+        <Stat label="Merchant Active Deals" value={merchants.reduce((s,m)=>s+m.active,0)} sub="not funded/declined" color="#0f766e"/>
+      </div>
+
+      <Card style={{marginBottom:12}}>
+        <div style={{display:'flex',gap:8,alignItems:'center'}}>
+          <div style={{display:'flex',border:'1px solid #e5e7eb',borderRadius:8,overflow:'hidden'}}>
+            {['brokers','merchants'].map(t=><button key={t} onClick={()=>setTab(t)} style={{padding:'6px 12px',border:'none',cursor:'pointer',background:tab===t?'#0f766e':'#fff',color:tab===t?'#fff':'#374151',fontSize:12,fontWeight:600,fontFamily:'Inter,sans-serif'}}>{t==='brokers'?'Brokers':'Merchants'}</button>)}
+          </div>
+          <input value={q} onChange={e=>setQ(e.target.value)} placeholder={tab==='brokers'?'Search brokers/email...':'Search merchants/email...'} style={{flex:1,padding:'7px 12px',borderRadius:7,border:'1px solid #e5e7eb',fontSize:13,fontFamily:'Inter,sans-serif',outline:'none',background:'#fff'}}/>
+        </div>
+      </Card>
+
+      {tab==='brokers'?(
+        <Card p={0}>
+          <table style={{width:'100%',borderCollapse:'collapse'}}>
+            <thead><tr>{['Broker','Email','Deals','Active','Funded','Funded Volume','Last Activity'].map(h=><th key={h} style={{textAlign:'left',padding:'8px 12px',fontSize:10,color:'#9ca3af',textTransform:'uppercase',letterSpacing:'.8px',borderBottom:'1px solid #f1f4f9',fontWeight:600,fontFamily:'JetBrains Mono,monospace'}}>{h}</th>)}</tr></thead>
+            <tbody>
+              {brokers.map(b=>(
+                <tr key={b.name} style={{borderBottom:'1px solid #f9fafb'}}>
+                  <td style={{padding:'10px 12px',fontWeight:600}}>{b.name}</td>
+                  <td style={{padding:'10px 12px',fontSize:12,color:'#6b7280'}}>{b.email||'--'}</td>
+                  <td style={{padding:'10px 12px',fontFamily:'JetBrains Mono,monospace'}}>{b.total}</td>
+                  <td style={{padding:'10px 12px',fontFamily:'JetBrains Mono,monospace',color:'#d97706'}}>{b.active}</td>
+                  <td style={{padding:'10px 12px',fontFamily:'JetBrains Mono,monospace',color:'#16a34a'}}>{b.funded}</td>
+                  <td style={{padding:'10px 12px',fontFamily:'JetBrains Mono,monospace',color:'#0f766e'}}>{f$(b.volume)}</td>
+                  <td style={{padding:'10px 12px',fontSize:11,color:'#9ca3af',fontFamily:'JetBrains Mono,monospace'}}>{b.last?new Date(b.last).toLocaleDateString():'--'}</td>
+                </tr>
+              ))}
+              {!brokers.length&&<tr><td colSpan={7} style={{textAlign:'center',padding:28,color:'#9ca3af'}}>No broker accounts found</td></tr>}
+            </tbody>
+          </table>
+        </Card>
+      ):(
+        <Card p={0}>
+          <table style={{width:'100%',borderCollapse:'collapse'}}>
+            <thead><tr>{['Merchant','Email','Businesses','Deals','Active','Funded','Latest Stage'].map(h=><th key={h} style={{textAlign:'left',padding:'8px 12px',fontSize:10,color:'#9ca3af',textTransform:'uppercase',letterSpacing:'.8px',borderBottom:'1px solid #f1f4f9',fontWeight:600,fontFamily:'JetBrains Mono,monospace'}}>{h}</th>)}</tr></thead>
+            <tbody>
+              {merchants.map(m=>(
+                <tr key={m.email} style={{borderBottom:'1px solid #f9fafb',cursor:m.latestDeal?'pointer':'default'}} onClick={()=>m.latestDeal&&setSel(m.latestDeal)}>
+                  <td style={{padding:'10px 12px',fontWeight:600}}>{m.name||'Merchant'}</td>
+                  <td style={{padding:'10px 12px',fontSize:12,color:'#6b7280'}}>{m.email}</td>
+                  <td style={{padding:'10px 12px',fontFamily:'JetBrains Mono,monospace'}}>{m.businessCount}</td>
+                  <td style={{padding:'10px 12px',fontFamily:'JetBrains Mono,monospace'}}>{m.total}</td>
+                  <td style={{padding:'10px 12px',fontFamily:'JetBrains Mono,monospace',color:'#d97706'}}>{m.active}</td>
+                  <td style={{padding:'10px 12px',fontFamily:'JetBrains Mono,monospace',color:'#16a34a'}}>{m.funded}</td>
+                  <td style={{padding:'10px 12px'}}>{m.latestDeal?<StatusPill status={m.latestDeal.status}/>:<span style={{fontSize:11,color:'#9ca3af'}}>--</span>}</td>
+                </tr>
+              ))}
+              {!merchants.length&&<tr><td colSpan={7} style={{textAlign:'center',padding:28,color:'#9ca3af'}}>No merchant accounts found</td></tr>}
+            </tbody>
+          </table>
+        </Card>
+      )}
+    </div>
+  )
+}
+
+// ─── INTEGRATIONS ─────────────────────────────────────────────────────────────
+function IntegrationsPanel({integrations}){
+  const rows=(integrations||[]).length?integrations:[
+    {label:'DocuSign',status:'pending',needed:'Create template + wire send contract action'},
+    {label:'NY Courts',status:'pending',needed:'Need NY Courts API key'},
+    {label:'DataMerch',status:'pending',needed:'Need DataMerch account + API key'},
+    {label:'Plaid',status:'pending',needed:'Bank verification for merchants'},
+    {label:'SendGrid / Mailchimp',status:'pending',needed:'ISO + Merchant email campaigns'},
+    {label:'SMS (Twilio)',status:'pending',needed:'Merchant notifications'},
+  ]
+  return(
+    <Card>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}>
+        <div style={{fontSize:14,fontWeight:700}}>API Integrations</div>
+        <span style={{fontSize:10,fontWeight:700,color:'#9333ea',background:'rgba(147,51,234,.1)',border:'1px solid rgba(147,51,234,.2)',borderRadius:20,padding:'3px 8px',fontFamily:'JetBrains Mono,monospace'}}>NON-LIVE / SETUP MODE</span>
+      </div>
+      <div style={{fontSize:12,color:'#6b7280',marginBottom:12}}>Status tracking only. No production sends are triggered from this panel.</div>
+      <div style={{fontSize:12,color:'#4f46e5',marginBottom:6}}>Broker website login URL (testing): <a href="/broker/login" style={{color:'#4f46e5',textDecoration:'none',fontFamily:'JetBrains Mono,monospace'}}>/broker/login</a></div>
+      <div style={{fontSize:12,color:'#0f766e',marginBottom:12}}>Merchant website login URL (testing): <a href="/merchant/login" style={{color:'#0f766e',textDecoration:'none',fontFamily:'JetBrains Mono,monospace'}}>/merchant/login</a></div>
+      <div style={{border:'1px solid #e5e7eb',borderRadius:10,overflow:'hidden'}}>
+        {rows.map((r,i)=>(
+          <div key={r.label} style={{display:'grid',gridTemplateColumns:'220px 120px 1fr',gap:10,alignItems:'center',padding:'10px 12px',borderBottom:i<rows.length-1?'1px solid #f1f4f9':'none',background:i%2===0?'#fff':'#fcfcfd'}}>
+            <div style={{fontSize:12,fontWeight:600}}>{r.label}</div>
+            <div>
+              <span style={{fontSize:10,fontWeight:700,borderRadius:20,padding:'2px 8px',fontFamily:'JetBrains Mono,monospace',background:r.status==='configured'?'rgba(22,163,74,.1)':'rgba(245,158,11,.12)',color:r.status==='configured'?'#16a34a':'#b45309',border:'1px solid '+(r.status==='configured'?'rgba(22,163,74,.2)':'rgba(245,158,11,.25)')}}>
+                {r.status==='configured'?'CONFIGURED':'PENDING'}
+              </span>
+            </div>
+            <div style={{fontSize:12,color:'#6b7280'}}>{r.needed}</div>
+          </div>
+        ))}
+      </div>
+    </Card>
+  )
+}
+
+// ─── USERS ────────────────────────────────────────────────────────────────────
+function UsersPanel({deals}){
+  const brokerEmails=[...new Set(deals.map(d=>(d.brokerEmail||'').toLowerCase()).filter(Boolean))]
+  const merchantEmails=[...new Set(deals.map(d=>(d.email||'').toLowerCase()).filter(Boolean))]
+  const [adminToken,setAdminToken]=useState('')
+  const [users,setUsers]=useState([])
+  const [uErr,setUErr]=useState('')
+  const [f,setF]=useState({email:'',password:'',role:'ops',brokerId:'',merchantEmail:''})
+  const [busy,setBusy]=useState(false)
+
+  const loadUsers=async()=>{
+    if(!adminToken){setUErr('Paste admin token to load users');return}
+    setUErr('')
+    try{
+      const r=await fetch('/api/auth/users',{headers:{Authorization:'Bearer '+adminToken}})
+      const d=await r.json()
+      if(!r.ok)throw new Error(d.error||'failed')
+      setUsers(d.users||[])
+    }catch(e){setUErr(e.message)}
+  }
+  const createUser=async()=>{
+    if(!adminToken){setUErr('Paste admin token first');return}
+    setBusy(true);setUErr('')
+    try{
+      const body={email:f.email,password:f.password,role:f.role,brokerId:f.brokerId||null,merchantEmail:f.merchantEmail||null}
+      const r=await fetch('/api/auth/users',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+adminToken},body:JSON.stringify(body)})
+      const d=await r.json()
+      if(!r.ok)throw new Error(d.error||'failed')
+      setF({email:'',password:'',role:'ops',brokerId:'',merchantEmail:''})
+      await loadUsers()
+    }catch(e){setUErr(e.message)}
+    setBusy(false)
+  }
+  return(
+    <div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10,marginBottom:12}}>
+        <Stat label="Employee Users" value={users.filter(u=>['admin','underwriter','ops','sales'].includes(u.role)).length||0} sub="from auth users"/>
+        <Stat label="Broker Users" value={brokerEmails.length} sub="from broker emails" color="#0f766e"/>
+        <Stat label="Merchant Users" value={merchantEmails.length} sub="from deal contacts" color="#0f766e"/>
+      </div>
+      <Card style={{marginBottom:12}}>
+        <div style={{fontSize:14,fontWeight:700,marginBottom:8}}>Connection Checklist</div>
+        <div style={{fontSize:12,color:'#6b7280',lineHeight:1.7}}>
+          1) Website merchant apply endpoint: <code>/api/public/apply-merchant</code><br/>
+          2) Website broker signup endpoint: <code>/api/public/signup-broker</code><br/>
+          3) Broker login page: <a href="/broker/login" style={{color:'#4f46e5',textDecoration:'none'}}>/broker/login</a><br/>
+          4) Merchant login page: <a href="/merchant/login" style={{color:'#0f766e',textDecoration:'none'}}>/merchant/login</a><br/>
+          5) Staff login page: <a href="/staff/login" style={{color:'#0f766e',textDecoration:'none'}}>/staff/login</a><br/>
+          6) Users API needs table: <code>users(id,email,role,password_hash,is_active,broker_id,merchant_email,created_at)</code>
+        </div>
+      </Card>
+      <Card style={{marginBottom:12}}>
+        <div style={{fontSize:13,fontWeight:700,marginBottom:8}}>Admin User Management (Testing)</div>
+        <input value={adminToken} onChange={e=>setAdminToken(e.target.value)} placeholder="Paste admin auth token from /staff/login" style={{width:'100%',padding:'8px 10px',border:'1px solid #e5e7eb',borderRadius:8,fontSize:12,marginBottom:8}}/>
+        <div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr 1fr auto',gap:8,alignItems:'center'}}>
+          <input value={f.email} onChange={e=>setF(x=>({...x,email:e.target.value}))} placeholder="user email" style={{padding:'7px 9px',border:'1px solid #e5e7eb',borderRadius:7,fontSize:12}}/>
+          <input value={f.password} onChange={e=>setF(x=>({...x,password:e.target.value}))} placeholder="password" style={{padding:'7px 9px',border:'1px solid #e5e7eb',borderRadius:7,fontSize:12}}/>
+          <select value={f.role} onChange={e=>setF(x=>({...x,role:e.target.value}))} style={{padding:'7px 9px',border:'1px solid #e5e7eb',borderRadius:7,fontSize:12}}>
+            {['admin','underwriter','ops','sales','broker','merchant'].map(r=><option key={r} value={r}>{r}</option>)}
+          </select>
+          <input value={f.merchantEmail} onChange={e=>setF(x=>({...x,merchantEmail:e.target.value}))} placeholder="merchant email (optional)" style={{padding:'7px 9px',border:'1px solid #e5e7eb',borderRadius:7,fontSize:12}}/>
+          <Btn sm onClick={createUser} disabled={busy}>{busy?'...':'Create'}</Btn>
+        </div>
+        <div style={{marginTop:8,display:'flex',gap:8}}>
+          <Btn sm sec onClick={loadUsers}>Load Users</Btn>
+          {uErr&&<span style={{fontSize:12,color:'#b91c1c'}}>{uErr}</span>}
+        </div>
+      </Card>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12}}>
+        <Card>
+          <div style={{fontSize:13,fontWeight:700,marginBottom:8}}>Auth Users</div>
+          {(users||[]).slice(0,25).map(u=><div key={u.id} style={{fontSize:12,padding:'7px 0',borderBottom:'1px solid #f1f4f9'}}>{u.email} <span style={{color:'#9ca3af'}}>{u.role}</span></div>)}
+          {!users.length&&<div style={{fontSize:12,color:'#9ca3af'}}>Load users with admin token</div>}
+        </Card>
+        <Card>
+          <div style={{fontSize:13,fontWeight:700,marginBottom:8}}>Broker User Emails</div>
+          {brokerEmails.slice(0,20).map(e=><div key={e} style={{fontSize:12,padding:'7px 0',borderBottom:'1px solid #f1f4f9'}}>{e}</div>)}
+          {!brokerEmails.length&&<div style={{fontSize:12,color:'#9ca3af'}}>No broker emails yet</div>}
+        </Card>
+        <Card>
+          <div style={{fontSize:13,fontWeight:700,marginBottom:8}}>Merchant User Emails</div>
+          {merchantEmails.slice(0,20).map(e=><div key={e} style={{fontSize:12,padding:'7px 0',borderBottom:'1px solid #f1f4f9'}}>{e}</div>)}
+          {!merchantEmails.length&&<div style={{fontSize:12,color:'#9ca3af'}}>No merchant emails yet</div>}
+        </Card>
+      </div>
+    </div>
   )
 }
 
