@@ -53,10 +53,23 @@ function Toast({msg,type='success',onClose}){
   return <div style={{position:'fixed',bottom:24,right:24,zIndex:9999,background:'#fff',border:'1px solid '+(type==='error'?'#fecaca':'#bbf7d0'),borderRadius:12,padding:'12px 18px',display:'flex',alignItems:'center',gap:10,fontSize:13,boxShadow:'0 8px 30px rgba(0,0,0,.1)',animation:'slideUp .3s ease',maxWidth:320}}><span style={{color:type==='error'?'#ef4444':'#10b981',fontSize:16}}>{type==='error'?'✗':'✓'}</span><span>{msg}</span></div>
 }
 
+function firstBroker(b){
+  if(b==null)return null
+  if(Array.isArray(b))return b[0]&&typeof b[0]==='object'?b[0]:null
+  if(typeof b==='object')return b
+  return null
+}
 function mapDeal(d){
-  const profit=d.amount_approved&&d.factor_rate?Math.round(d.amount_approved*(1.499-d.factor_rate)):null
-  const uwNotes=Array.isArray(d.deal_notes)?d.deal_notes.map(noteFromApi):[]
-  return{id:d.deal_number||d.id,dbId:d.id,business:d.business_name||'Unknown',contact:d.contact_name||'',email:d.contact_email||'',broker:d.broker?.name||d.contact_email||'Unknown',brokerEmail:d.broker?.email||'',amount:d.amount_approved||null,requested:d.amount_requested||null,status:normalizeStatus(d.status),risk:d.risk_score||null,factor:d.factor_rate||null,termDays:d.term_months?d.term_months*30:null,positions:d.positions||0,dailyBal:d.avg_daily_balance||null,monthlyRev:d.monthly_revenue||null,nyCourt:d.ny_court_result||null,dataMerch:d.datamerch_result||null,submitted:d.submitted_at?d.submitted_at.slice(0,10):'',submittedAt:d.submitted_at||null,funded:d.funded_at?d.funded_at.slice(0,10):null,balance:d.balance||null,notes:d.notes||'',uwNotes,profit,payback:d.amount_approved?Math.round(d.amount_approved*1.499):null}
+  try{
+    const profit=d.amount_approved&&d.factor_rate?Math.round(d.amount_approved*(1.499-d.factor_rate)):null
+    const uwNotes=Array.isArray(d.deal_notes)?d.deal_notes.map(noteFromApi):[]
+    const br=firstBroker(d.broker)
+    const brokerName=(br?.name||'').trim()
+    return{id:d.deal_number||d.id,dbId:d.id,business:d.business_name||'Unknown',contact:d.contact_name||'',email:d.contact_email||'',broker:brokerName||'Unknown',brokerId:d.broker_id??br?.id??null,brokerEmail:(br?.email||'').trim()||'',brokerContact:(br?.contact||'').trim()||'',amount:d.amount_approved||null,requested:d.amount_requested||null,status:normalizeStatus(d.status),risk:d.risk_score||null,factor:d.factor_rate||null,termDays:d.term_months?d.term_months*30:null,positions:d.positions||0,dailyBal:d.avg_daily_balance||null,monthlyRev:d.monthly_revenue||null,nyCourt:d.ny_court_result||null,dataMerch:d.datamerch_result||null,submitted:d.submitted_at?d.submitted_at.slice(0,10):'',submittedAt:d.submitted_at||null,funded:d.funded_at?d.funded_at.slice(0,10):null,balance:d.balance||null,notes:d.notes||'',uwNotes,profit,payback:d.amount_approved?Math.round(d.amount_approved*1.499):null}
+  }catch(err){
+    console.error('mapDeal:',d?.id,err)
+    return{id:d?.deal_number||d?.id||'?',dbId:d?.id,business:'(parse error)',contact:'',email:'',broker:'Unknown',brokerId:null,brokerEmail:'',brokerContact:'',amount:null,requested:null,status:'new',risk:null,factor:null,termDays:null,positions:0,dailyBal:null,monthlyRev:null,nyCourt:null,dataMerch:null,submitted:'',submittedAt:null,funded:null,balance:null,notes:'',uwNotes:[],profit:null,payback:null}
+  }
 }
 
 export default function App(){
@@ -69,37 +82,73 @@ export default function App(){
   const [showNew,setShowNew]=useState(false)
   const [syncing,setSyncing]=useState(false)
   const [toast,setToast]=useState(null)
+  const [dealsLoadError,setDealsLoadError]=useState(null)
   const timer=useRef(null)
-  const notify=(msg,type='success')=>setToast({msg,type})
+  const loadDealsAbort=useRef(null)
+  const notify=useCallback((msg,type='success')=>{setToast({msg,type})},[])
 
   const loadDeals=useCallback(async()=>{
+    loadDealsAbort.current?.abort()
+    const runAbort=new AbortController()
+    loadDealsAbort.current=runAbort
+
+    let uiUnlocked=false
+    const unlockUi=()=>{
+      if(!uiUnlocked){
+        uiUnlocked=true
+        setLoading(false)
+      }
+    }
     try{
-      // Full restore: up to 500 deals per page with embedded deal_notes + broker (original API shape).
+      setDealsLoadError(null)
+      // Offset pagination (stable with duplicate submitted_at); unlock UI after first batch.
       let merged=[]
-      let cursor=null
+      let offset=0
       const pageLimit=500
       for(let page=0;page<40;page++){
-        const url=cursor
-          ? `/api/deals/list?limit=${pageLimit}&cursor=${encodeURIComponent(cursor)}`
-          : `/api/deals/list?limit=${pageLimit}`
-        const r=await fetch(url,{cache:'no-store'})
-        if(!r.ok)throw new Error('deals list '+r.status)
+        const url=`/api/deals/list?limit=${pageLimit}&offset=${offset}`
+        const ac=new AbortController()
+        const to=setTimeout(()=>ac.abort(),90000)
+        let r
+        const pageSig=
+          typeof AbortSignal!=='undefined'&&typeof AbortSignal.any==='function'
+            ? AbortSignal.any([ac.signal,runAbort.signal])
+            : ac.signal
+        try{
+          r=await fetch(url,{cache:'no-store',signal:pageSig})
+        }finally{
+          clearTimeout(to)
+        }
+        if(!r.ok){
+          const errText=await r.text().catch(()=>'')
+          throw new Error(`deals list ${r.status}${errText?': '+errText.slice(0,200):''}`)
+        }
         const data=await r.json()
         const batch=Array.isArray(data.deals)?data.deals:[]
-        if(!batch.length)break
         merged=merged.concat(batch)
+        unlockUi()
+        const seen=new Set()
+        const partialDedup=merged.filter(d=>{const k=d.id||d.deal_number;if(seen.has(k))return false;seen.add(k);return true})
+        setDeals(partialDedup.map(mapDeal))
+        offset+=batch.length
+        if(!batch.length)break
         if(batch.length<pageLimit)break
-        cursor=data.nextCursor||null
-        if(!cursor)break
+        if(data.hasMore===false)break
       }
-      const seen=new Set()
-      const dedup=merged.filter(d=>{const k=d.id||d.deal_number;if(seen.has(k))return false;seen.add(k);return true})
-      setDeals(dedup.map(mapDeal))
     }catch(e){
+      if(e?.name==='AbortError')return
       console.error('Load deals:',e)
+      const msg=String(e.message||e)||'Could not load deals'
+      if(!uiUnlocked){
+        setDealsLoadError(msg)
+        setDeals([])
+      }else{
+        setDealsLoadError(msg)
+        notify('Deal list refresh failed — showing last loaded data. '+msg,'error')
+      }
     }
-    setLoading(false)
-  },[])
+    unlockUi()
+  },[notify])
 
   const loadIntegrations=useCallback(async()=>{
     try{
@@ -112,7 +161,8 @@ export default function App(){
     }
   },[])
 
-  useEffect(()=>{loadDeals();loadIntegrations();timer.current=setInterval(loadDeals,60000);return()=>clearInterval(timer.current)},[loadDeals,loadIntegrations])
+  useEffect(()=>{loadDeals();loadIntegrations();timer.current=setInterval(loadDeals,60000);return()=>{clearInterval(timer.current);loadDealsAbort.current?.abort()}},[loadDeals,loadIntegrations])
+  useEffect(()=>{if(pg==='integrations')loadIntegrations()},[pg,loadIntegrations])
 
   const syncSheets=async()=>{
     setSyncing(true)
@@ -139,7 +189,6 @@ export default function App(){
   const NAV=[
     {id:'dashboard',l:'Dashboard',section:'main'},
     {id:'deals',l:'All Deals',b:todayCnt||null,section:'main'},
-    {id:'accounts',l:'Accounts',section:'main'},
     {id:'pipeline',l:'Pipeline',section:'main'},
     {id:'uwqueue',l:'UW Queue',b:uwCount||null,section:'main'},
     {id:'contracts',l:'Contracts',b:contractCount||null,section:'main'},
@@ -151,6 +200,7 @@ export default function App(){
     {id:'users',l:'Users',section:'main'},
     {id:'iso_campaigns',l:'ISO Campaigns',section:'partners'},
     {id:'merchant_campaigns',l:'Merchant Campaigns',section:'partners'},
+    {id:'accounts',l:'Accounts',section:'accounts'},
   ]
 
   const css=`
@@ -187,11 +237,18 @@ export default function App(){
           <nav style={{flex:1,padding:'8px 0',overflowY:'auto'}}>
             <div style={{padding:'0 8px',marginBottom:4}}>
               <div style={{fontSize:10,color:'#9ca3af',textTransform:'uppercase',letterSpacing:'1.2px',padding:'8px 8px 4px',fontFamily:'JetBrains Mono,monospace',fontWeight:600}}>Workspace</div>
-              {NAV.map(n=>(
-                <button key={n.id} onClick={()=>{if(n.id==='deals')setDealsTab('all');setPg(n.id)}} style={{display:'flex',alignItems:'center',gap:9,padding:'8px 10px',borderRadius:7,fontSize:13,fontWeight:500,color:pg===n.id?'#6366f1':'#4b5563',cursor:'pointer',border:'none',background:pg===n.id?'rgba(99,102,241,.1)':'transparent',width:'100%',textAlign:'left',marginBottom:1,transition:'all .12s'}}>
-                  {n.l}{n.b>0&&<span style={{marginLeft:'auto',background:'#6366f1',color:'#fff',borderRadius:10,fontSize:10,padding:'1px 6px',fontFamily:'JetBrains Mono,monospace'}}>{n.b}</span>}
-                </button>
-              ))}
+              {NAV.map((n,i)=>{
+                const prev=NAV[i-1]
+                const hdr=n.section==='partners'&&(!prev||prev.section!=='partners')?{k:'h-p',t:'Partners'}:null
+                return(
+                  <div key={n.id}>
+                    {hdr&&<div key={hdr.k} style={{fontSize:10,color:'#9ca3af',textTransform:'uppercase',letterSpacing:'1.2px',padding:'12px 8px 4px',fontFamily:'JetBrains Mono,monospace',fontWeight:600}}>{hdr.t}</div>}
+                    <button onClick={()=>{if(n.id==='deals')setDealsTab('all');setPg(n.id)}} style={{display:'flex',alignItems:'center',gap:9,padding:'8px 10px',borderRadius:7,fontSize:13,fontWeight:500,color:pg===n.id?'#6366f1':'#4b5563',cursor:'pointer',border:'none',background:pg===n.id?'rgba(99,102,241,.1)':'transparent',width:'100%',textAlign:'left',marginBottom:1,transition:'all .12s'}}>
+                      {n.l}{n.b>0&&<span style={{marginLeft:'auto',background:'#6366f1',color:'#fff',borderRadius:10,fontSize:10,padding:'1px 6px',fontFamily:'JetBrains Mono,monospace'}}>{n.b}</span>}
+                    </button>
+                  </div>
+                )
+              })}
             </div>
           </nav>
           <div style={{padding:10,borderTop:'1px solid #e5e7eb'}}>
@@ -215,6 +272,12 @@ export default function App(){
             </div>
           </div>
           <div style={{flex:1,minHeight:0,overflowY:'auto',padding:20}}>
+            {dealsLoadError&&(
+              <div style={{marginBottom:14,padding:'12px 16px',background:'#fef2f2',border:'1px solid #fecaca',borderRadius:10,fontSize:13,color:'#991b1b',lineHeight:1.5}}>
+                <strong>Deals API:</strong> {dealsLoadError}
+                <div style={{marginTop:10}}><Btn sm sec onClick={()=>{setDealsLoadError(null);loadDeals()}}>Retry load</Btn></div>
+              </div>
+            )}
             {pg==='dashboard'&&<Dashboard deals={deals} integrationStatus={integrationStatus} setPg={setPg} setSel={setSel} setDealsTab={setDealsTab} tf={tf} tp={tp} funded={funded} todayCnt={todayCnt}/>}
             {pg==='deals'&&<DealsList deals={deals} tab={dealsTab} onTabChange={setDealsTab} setSel={setSel} setShowNew={setShowNew} delDeal={delDeal}/>}
             {pg==='accounts'&&<AccountsPanel deals={deals} setSel={setSel}/>}
@@ -274,7 +337,7 @@ function Dashboard({deals,integrationStatus,setPg,setSel,setDealsTab,tf,tp,funde
   const uw=deals.filter(d=>d.status==='underwriting')
   const pipeline=['new','scrubbing','underwriting','pending','offered','docs','contracts','bankverify']
   const merchantCount=new Set(deals.map(d=>(d.email||'').toLowerCase()).filter(Boolean)).size
-  const brokerCount=new Set(deals.map(d=>(d.broker||'').toLowerCase()).filter(Boolean)).size
+  const brokerCount=new Set(deals.filter(d=>d.broker&&d.broker!=='Unknown').map(d=>d.broker.toLowerCase())).size
   const workflowRows=deals.slice(0,12).map(d=>{
     const noteText=(d.uwNotes||[]).map(n=>n.text||'').join(' ')
     return{
@@ -377,7 +440,24 @@ function Dashboard({deals,integrationStatus,setPg,setSel,setDealsTab,tf,tp,funde
       </div>
 
       {/* BOTTOM ROW */}
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:14}}>
+        <Card>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
+            <div style={{fontSize:13,fontWeight:700}}>Top Brokers / ISO</div>
+            <Btn sm sec onClick={()=>setPg('accounts')}>Open Accounts</Btn>
+          </div>
+          {(()=>{
+            const bmap={}
+            deals.forEach(d=>{if(!d.broker||d.broker==='Unknown')return;if(!bmap[d.broker])bmap[d.broker]={name:d.broker,total:0,funded:0,volume:0};bmap[d.broker].total++;if(d.status==='funded'){bmap[d.broker].funded++;bmap[d.broker].volume+=d.amount||0}})
+            return Object.values(bmap).sort((a,b)=>b.total-a.total).slice(0,5).map((b,i)=>(
+              <div key={b.name} style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
+                <div style={{width:22,height:22,borderRadius:'50%',background:'linear-gradient(135deg,#6366f1,#a78bfa)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,color:'#fff',flexShrink:0}}>{i+1}</div>
+                <div style={{flex:1,minWidth:0}}><div style={{fontSize:13,fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{b.name}</div><div style={{fontSize:11,color:'#9ca3af'}}>{b.total} deals · {b.funded} funded</div></div>
+                <div style={{fontSize:12,fontFamily:'JetBrains Mono,monospace',fontWeight:600,color:'#16a34a'}}>{f$(b.volume)}</div>
+              </div>
+            ))
+          })()}
+        </Card>
         {/* ADMIN OVERSIGHT */}
         <Card>
           <div style={{fontSize:13,fontWeight:700,marginBottom:12}}>Admin Oversight</div>
@@ -392,21 +472,38 @@ function Dashboard({deals,integrationStatus,setPg,setSel,setDealsTab,tf,tp,funde
           <div style={{fontSize:11,color:'#9ca3af'}}>Use <strong>Accounts</strong> (broker roll-up), <strong>All Deals</strong>, <strong>Contracts</strong>, and <strong>Bank Verify Queue</strong> for full backend review.</div>
         </Card>
 
-        {/* AUTOMATION STATUS */}
+        {/* AUTOMATION & CONNECTIONS (curated — same as before, now driven by /api/integrations/status) */}
         <Card>
-          <div style={{fontSize:13,fontWeight:700,marginBottom:12}}>Automation Status</div>
-          {[
-            {l:'Gmail watcher',s:'Picks up new submissions every 5 min',ok:true},
-            {l:'Document parser',s:'Reads bank statements automatically',ok:true},
-            {l:'AI scrubber',s:'Underwrites each deal independently',ok:true},
-            {l:'Google Sheets sync',s:'Updates CRM sheet every 15 min',ok:true},
-            ...((integrationStatus||[]).map(i=>({l:i.label,s:i.needed,ok:i.status==='configured'}))),
-            {l:'Broker approval portal',s:'Sandbox test mode only — non-live links + test uploads',ok:false},
-          ].map((i,x)=>(
-            <div key={x} style={{display:'flex',alignItems:'center',gap:10,marginBottom:9}}>
-              <span style={{width:7,height:7,borderRadius:'50%',background:i.ok?'#16a34a':'#e5e7eb',display:'block',flexShrink:0,border:i.ok?'none':'2px solid #d1d5db'}}/>
-              <div style={{flex:1}}><div style={{fontSize:12,fontWeight:600,color:i.ok?'#111827':'#9ca3af'}}>{i.l}</div><div style={{fontSize:11,color:'#9ca3af'}}>{i.s}</div></div>
-              <span style={{fontSize:10,fontWeight:600,color:i.ok?'#16a34a':'#d1d5db',fontFamily:'JetBrains Mono,monospace'}}>{i.ok?'LIVE':'PENDING'}</span>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
+            <div style={{fontSize:13,fontWeight:700}}>Automation & connections</div>
+            <Btn sm sec onClick={()=>setPg('integrations')}>All integrations</Btn>
+          </div>
+          <div style={{fontSize:11,color:'#9ca3af',marginBottom:10}}>Classic at-a-glance rows; status comes from the same env checks as the Integrations page.</div>
+          {(()=>{
+            const M=Object.fromEntries((integrationStatus||[]).map(x=>[x.key,x]))
+            const R=(key,reactKey,label,liveHint)=>{
+              const i=M[key]
+              const ok=i?.status==='configured'
+              const partial=i?.status==='partial'
+              const s=ok?liveHint:(i?.needed||liveHint)
+              return{l:label,s,ok,partial,k:reactKey}
+            }
+            return[
+              R('gmail','gmail','Gmail watcher','Picks up new submissions every 5 min'),
+              R('anthropic','parser','Document parser','Reads bank statements automatically'),
+              R('anthropic','scrub','AI scrubber','Underwrites each deal independently'),
+              R('sheets','sheets','Google Sheets sync','Updates CRM sheet on sync'),
+              R('sendgrid','sg','SendGrid (email)','Offer / approval / ops sends'),
+              R('docusign','ds','DocuSign','Contract signing — envelopes & links'),
+              R('ny_courts','ny','NY Courts API','Court / NYSCEF lookup'),
+              R('datamerch','dm','DataMerch API','MCA history / risk signals'),
+              {l:'Broker approval portal',s:'Sandbox — non-live broker links + test uploads',ok:false,partial:false,k:'broker_portal'},
+            ]
+          })().map((i,x)=>(
+            <div key={i.k||x} style={{display:'flex',alignItems:'center',gap:10,marginBottom:9}}>
+              <span style={{width:7,height:7,borderRadius:'50%',background:i.ok?'#16a34a':i.partial?'#f59e0b':'#e5e7eb',display:'block',flexShrink:0,border:i.ok||i.partial?'none':'2px solid #d1d5db'}}/>
+              <div style={{flex:1}}><div style={{fontSize:12,fontWeight:600,color:i.ok||i.partial?'#111827':'#9ca3af'}}>{i.l}</div><div style={{fontSize:11,color:'#9ca3af'}}>{i.s}</div></div>
+              <span style={{fontSize:10,fontWeight:600,color:i.ok?'#16a34a':i.partial?'#d97706':'#d1d5db',fontFamily:'JetBrains Mono,monospace'}}>{i.ok?'LIVE':i.partial?'PARTIAL':'PENDING'}</span>
             </div>
           ))}
         </Card>
@@ -1341,63 +1438,99 @@ function AccountsPanel({deals,setSel}){
 
   const brokerMap={}
   deals.forEach(d=>{
-    const key=(d.broker||'').trim()
-    if(!key||key==='Unknown')return
-    if(!brokerMap[key]) brokerMap[key]={name:key,email:d.brokerEmail||'',total:0,active:0,funded:0,volume:0,last:''}
+    const bid=d.brokerId
+    const bname=(d.broker||'').trim()
+    const key=bid!=null&&bid!==''?`id:${bid}`:bname
+    if(!bid && (!bname||bname==='Unknown'))return
+    if(!brokerMap[key])brokerMap[key]={
+      name:bname&&bname!=='Unknown'?bname:(bid?`Broker (${String(bid).slice(0,8)}…)`:'Unknown'),
+      email:'',
+      contact:'',
+      total:0,active:0,funded:0,volume:0,last:''
+    }
     const b=brokerMap[key]
+    if(bname&&bname!=='Unknown')b.name=bname
+    if(d.brokerEmail)b.email=d.brokerEmail
+    if(d.brokerContact&&(!b.contact||d.brokerContact.length>b.contact.length))b.contact=d.brokerContact
     b.total++
     if(!['funded','declined'].includes(d.status)) b.active++
     if(d.status==='funded'){b.funded++;b.volume+=(d.amount||0)}
     if(!b.last||new Date(d.submittedAt||0)>new Date(b.last||0)) b.last=d.submittedAt||b.last
   })
-  const brokers=Object.values(brokerMap)
-    .filter(b=>!text||b.name.toLowerCase().includes(text)||(b.email||'').toLowerCase().includes(text))
+  const brokers=Object.entries(brokerMap).map(([k,v])=>({...v,rowKey:k}))
+    .filter(b=>!text||b.name.toLowerCase().includes(text)||(b.email||'').toLowerCase().includes(text)||(b.contact||'').toLowerCase().includes(text))
     .sort((a,b)=>b.total-a.total)
 
   const merchMap={}
-  deals.forEach(d=>{
+  deals.filter(d=>d.status==='funded').forEach(d=>{
     const key=(d.email||'').trim().toLowerCase()
     if(!key)return
-    if(!merchMap[key]) merchMap[key]={email:key,name:d.contact||'Merchant',businesses:new Set(),total:0,active:0,funded:0,last:'',latestDeal:null}
+    if(!merchMap[key]) merchMap[key]={
+      email:key,
+      name:(d.contact||'').trim()||'Merchant',
+      businesses:new Set(),
+      fundedCount:0,
+      volume:0,
+      lastFundedAt:null,
+      latestDeal:null
+    }
     const m=merchMap[key]
-    m.total++
     m.businesses.add(d.business||'Unknown')
-    if(!['funded','declined'].includes(d.status))m.active++
-    if(d.status==='funded')m.funded++
-    if(!m.last||new Date(d.submittedAt||0)>new Date(m.last||0)){m.last=d.submittedAt||m.last;m.latestDeal=d}
+    m.fundedCount++
+    m.volume+=(d.amount||0)
+    const fu=d.funded||d.submittedAt||null
+    const t=fu?new Date(fu).getTime():0
+    if(!m.lastFundedAt||t>new Date(m.lastFundedAt).getTime()){m.lastFundedAt=fu;m.latestDeal=d}
+    if((d.contact||'').trim())m.name=(d.contact||'').trim()
   })
   const merchants=Object.values(merchMap)
     .map(m=>({...m,businessCount:m.businesses.size}))
-    .filter(m=>!text||m.email.includes(text)||(m.name||'').toLowerCase().includes(text))
-    .sort((a,b)=>b.total-a.total)
+    .filter(m=>{
+      if(!text)return true
+      if(m.email.includes(text)||(m.name||'').toLowerCase().includes(text))return true
+      if(((m.latestDeal&&m.latestDeal.contact)||'').toLowerCase().includes(text))return true
+      return Array.from(m.businesses).some(b=>String(b).toLowerCase().includes(text))
+    })
+    .sort((a,b)=>b.volume-a.volume)
+
+  const merchFundedDeals=merchants.reduce((s,m)=>s+m.fundedCount,0)
+  const merchVol=merchants.reduce((s,m)=>s+m.volume,0)
 
   return(
     <div>
+      <Card style={{marginBottom:12}}>
+        <div style={{fontSize:12,color:'#4b5563',lineHeight:1.65}}>
+          <strong style={{color:'#111827'}}>ISO / Partners</strong> — referral shops that send submissions; counts include every deal they referred (new through funded).
+          <br/>
+          <strong style={{color:'#111827'}}>Funded merchants</strong> — end borrowers you advanced; only deals in <strong>Funded</strong> status are rolled up here (your funded book).
+        </div>
+      </Card>
       <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:14}}>
-        <Stat label="Broker Accounts" value={brokers.length} sub="unique brokers"/>
-        <Stat label="Merchant Accounts" value={merchants.length} sub="unique merchant emails"/>
-        <Stat label="Broker Active Deals" value={brokers.reduce((s,b)=>s+b.active,0)} sub="not funded/declined" color="#0f766e"/>
-        <Stat label="Merchant Active Deals" value={merchants.reduce((s,m)=>s+m.active,0)} sub="not funded/declined" color="#0f766e"/>
+        <Stat label="ISO / broker partners" value={brokers.length} sub="unique referral shops"/>
+        <Stat label="Referral deals (active)" value={brokers.reduce((s,b)=>s+b.active,0)} sub="in pipeline (excl. funded + declined)" color="#0f766e"/>
+        <Stat label="Funded merchant accounts" value={merchants.length} sub="merchants with ≥1 funded deal"/>
+        <Stat label="Advanced to merchants" value={f$(merchVol)} sub={`${merchFundedDeals} funded position${merchFundedDeals!==1?'s':''}`} color="#16a34a"/>
       </div>
 
       <Card style={{marginBottom:12}}>
         <div style={{display:'flex',gap:8,alignItems:'center'}}>
           <div style={{display:'flex',border:'1px solid #e5e7eb',borderRadius:8,overflow:'hidden'}}>
-            {['brokers','merchants'].map(t=><button key={t} onClick={()=>setTab(t)} style={{padding:'6px 12px',border:'none',cursor:'pointer',background:tab===t?'#0f766e':'#fff',color:tab===t?'#fff':'#374151',fontSize:12,fontWeight:600,fontFamily:'Inter,sans-serif'}}>{t==='brokers'?'Brokers':'Merchants'}</button>)}
+            {['brokers','merchants'].map(t=><button key={t} onClick={()=>setTab(t)} style={{padding:'6px 12px',border:'none',cursor:'pointer',background:tab===t?'#0f766e':'#fff',color:tab===t?'#fff':'#374151',fontSize:12,fontWeight:600,fontFamily:'Inter,sans-serif'}}>{t==='brokers'?'ISO / Partners':'Funded merchants'}</button>)}
           </div>
-          <input value={q} onChange={e=>setQ(e.target.value)} placeholder={tab==='brokers'?'Search brokers/email...':'Search merchants/email...'} style={{flex:1,padding:'7px 12px',borderRadius:7,border:'1px solid #e5e7eb',fontSize:13,fontFamily:'Inter,sans-serif',outline:'none',background:'#fff'}}/>
+          <input value={q} onChange={e=>setQ(e.target.value)} placeholder={tab==='brokers'?'Search ISO name, email, contact…':'Search funded merchant, business, email…'} style={{flex:1,padding:'7px 12px',borderRadius:7,border:'1px solid #e5e7eb',fontSize:13,fontFamily:'Inter,sans-serif',outline:'none',background:'#fff'}}/>
         </div>
       </Card>
 
       {tab==='brokers'?(
         <Card p={0}>
           <table style={{width:'100%',borderCollapse:'collapse'}}>
-            <thead><tr>{['Broker','Email','Deals','Active','Funded','Funded Volume','Last Activity'].map(h=><th key={h} style={{textAlign:'left',padding:'8px 12px',fontSize:10,color:'#9ca3af',textTransform:'uppercase',letterSpacing:'.8px',borderBottom:'1px solid #f1f4f9',fontWeight:600,fontFamily:'JetBrains Mono,monospace'}}>{h}</th>)}</tr></thead>
+            <thead><tr>{['Broker / ISO','Email','ISO contact','Deals','Active','Funded','Funded vol.','Last activity'].map(h=><th key={h} style={{textAlign:'left',padding:'8px 12px',fontSize:10,color:'#9ca3af',textTransform:'uppercase',letterSpacing:'.8px',borderBottom:'1px solid #f1f4f9',fontWeight:600,fontFamily:'JetBrains Mono,monospace'}}>{h}</th>)}</tr></thead>
             <tbody>
               {brokers.map(b=>(
-                <tr key={b.name} style={{borderBottom:'1px solid #f9fafb'}}>
+                <tr key={b.rowKey} style={{borderBottom:'1px solid #f9fafb'}}>
                   <td style={{padding:'10px 12px',fontWeight:600}}>{b.name}</td>
                   <td style={{padding:'10px 12px',fontSize:12,color:'#6b7280'}}>{b.email||'--'}</td>
+                  <td style={{padding:'10px 12px',fontSize:12,color:'#6b7280',maxWidth:140,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}} title={b.contact||''}>{b.contact||'--'}</td>
                   <td style={{padding:'10px 12px',fontFamily:'JetBrains Mono,monospace'}}>{b.total}</td>
                   <td style={{padding:'10px 12px',fontFamily:'JetBrains Mono,monospace',color:'#d97706'}}>{b.active}</td>
                   <td style={{padding:'10px 12px',fontFamily:'JetBrains Mono,monospace',color:'#16a34a'}}>{b.funded}</td>
@@ -1405,27 +1538,27 @@ function AccountsPanel({deals,setSel}){
                   <td style={{padding:'10px 12px',fontSize:11,color:'#9ca3af',fontFamily:'JetBrains Mono,monospace'}}>{b.last?new Date(b.last).toLocaleDateString():'--'}</td>
                 </tr>
               ))}
-              {!brokers.length&&<tr><td colSpan={7} style={{textAlign:'center',padding:28,color:'#9ca3af'}}>No broker accounts found</td></tr>}
+              {!brokers.length&&<tr><td colSpan={8} style={{textAlign:'center',padding:28,color:'#9ca3af'}}>No broker accounts found</td></tr>}
             </tbody>
           </table>
         </Card>
       ):(
         <Card p={0}>
           <table style={{width:'100%',borderCollapse:'collapse'}}>
-            <thead><tr>{['Merchant','Email','Businesses','Deals','Active','Funded','Latest Stage'].map(h=><th key={h} style={{textAlign:'left',padding:'8px 12px',fontSize:10,color:'#9ca3af',textTransform:'uppercase',letterSpacing:'.8px',borderBottom:'1px solid #f1f4f9',fontWeight:600,fontFamily:'JetBrains Mono,monospace'}}>{h}</th>)}</tr></thead>
+            <thead><tr>{['Merchant','Email','Contact','Businesses','Funded deals','Total funded','Last funded'].map(h=><th key={h} style={{textAlign:'left',padding:'8px 12px',fontSize:10,color:'#9ca3af',textTransform:'uppercase',letterSpacing:'.8px',borderBottom:'1px solid #f1f4f9',fontWeight:600,fontFamily:'JetBrains Mono,monospace'}}>{h}</th>)}</tr></thead>
             <tbody>
               {merchants.map(m=>(
                 <tr key={m.email} style={{borderBottom:'1px solid #f9fafb',cursor:m.latestDeal?'pointer':'default'}} onClick={()=>m.latestDeal&&setSel(m.latestDeal)}>
                   <td style={{padding:'10px 12px',fontWeight:600}}>{m.name||'Merchant'}</td>
                   <td style={{padding:'10px 12px',fontSize:12,color:'#6b7280'}}>{m.email}</td>
+                  <td style={{padding:'10px 12px',fontSize:12,color:'#6b7280',maxWidth:120,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}} title={(m.latestDeal&&m.latestDeal.contact)||''}>{(m.latestDeal&&m.latestDeal.contact)||'--'}</td>
                   <td style={{padding:'10px 12px',fontFamily:'JetBrains Mono,monospace'}}>{m.businessCount}</td>
-                  <td style={{padding:'10px 12px',fontFamily:'JetBrains Mono,monospace'}}>{m.total}</td>
-                  <td style={{padding:'10px 12px',fontFamily:'JetBrains Mono,monospace',color:'#d97706'}}>{m.active}</td>
-                  <td style={{padding:'10px 12px',fontFamily:'JetBrains Mono,monospace',color:'#16a34a'}}>{m.funded}</td>
-                  <td style={{padding:'10px 12px'}}>{m.latestDeal?<StatusPill status={m.latestDeal.status}/>:<span style={{fontSize:11,color:'#9ca3af'}}>--</span>}</td>
+                  <td style={{padding:'10px 12px',fontFamily:'JetBrains Mono,monospace',color:'#16a34a'}}>{m.fundedCount}</td>
+                  <td style={{padding:'10px 12px',fontFamily:'JetBrains Mono,monospace',fontWeight:600,color:'#0f766e'}}>{f$(m.volume)}</td>
+                  <td style={{padding:'10px 12px',fontSize:11,color:'#9ca3af',fontFamily:'JetBrains Mono,monospace'}}>{m.lastFundedAt?new Date(m.lastFundedAt).toLocaleDateString():'--'}</td>
                 </tr>
               ))}
-              {!merchants.length&&<tr><td colSpan={7} style={{textAlign:'center',padding:28,color:'#9ca3af'}}>No merchant accounts found</td></tr>}
+              {!merchants.length&&<tr><td colSpan={7} style={{textAlign:'center',padding:28,color:'#9ca3af'}}>No funded merchants yet — funded deals will appear here by merchant email.</td></tr>}
             </tbody>
           </table>
         </Card>
@@ -1436,36 +1569,53 @@ function AccountsPanel({deals,setSel}){
 
 // ─── INTEGRATIONS ─────────────────────────────────────────────────────────────
 function IntegrationsPanel({integrations}){
-  const rows=(integrations||[]).length?integrations:[
-    {label:'DocuSign',status:'pending',needed:'Create template + wire send contract action'},
-    {label:'NY Courts',status:'pending',needed:'Need NY Courts API key'},
-    {label:'DataMerch',status:'pending',needed:'Need DataMerch account + API key'},
-    {label:'Plaid',status:'pending',needed:'Bank verification for merchants'},
-    {label:'SendGrid / Mailchimp',status:'pending',needed:'ISO + Merchant email campaigns'},
-    {label:'SMS (Twilio)',status:'pending',needed:'Merchant notifications'},
-  ]
+  const rows=Array.isArray(integrations)?integrations:[]
+  const badge=(st)=>{
+    if(st==='configured')return{background:'rgba(22,163,74,.1)',color:'#16a34a',border:'1px solid rgba(22,163,74,.2)',text:'CONFIGURED'}
+    if(st==='partial')return{background:'rgba(245,158,11,.12)',color:'#b45309',border:'1px solid rgba(245,158,11,.28)',text:'PARTIAL'}
+    return{background:'rgba(148,163,184,.15)',color:'#64748b',border:'1px solid rgba(148,163,184,.35)',text:'PENDING'}
+  }
+  const catOrder=['Core','Inbox & email','Reporting','Contracts','Risk','Marketing','Other']
+  const byCat={}
+  rows.forEach(r=>{
+    const c=r.category||'Other'
+    if(!byCat[c])byCat[c]=[]
+    byCat[c].push(r)
+  })
+  const sections=catOrder.filter(c=>byCat[c]?.length)
   return(
     <Card>
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}>
-        <div style={{fontSize:14,fontWeight:700}}>API Integrations</div>
-        <span style={{fontSize:10,fontWeight:700,color:'#9333ea',background:'rgba(147,51,234,.1)',border:'1px solid rgba(147,51,234,.2)',borderRadius:20,padding:'3px 8px',fontFamily:'JetBrains Mono,monospace'}}>NON-LIVE / SETUP MODE</span>
+        <div style={{fontSize:14,fontWeight:700}}>Integrations</div>
+        <span style={{fontSize:10,fontWeight:700,color:'#9333ea',background:'rgba(147,51,234,.1)',border:'1px solid rgba(147,51,234,.2)',borderRadius:20,padding:'3px 8px',fontFamily:'JetBrains Mono,monospace'}}>ENV-DRIVEN</span>
       </div>
-      <div style={{fontSize:12,color:'#6b7280',marginBottom:12}}>Status tracking only. No production sends are triggered from this panel.</div>
-      <div style={{fontSize:12,color:'#4f46e5',marginBottom:6}}>Broker website login URL (testing): <a href="/broker/login" style={{color:'#4f46e5',textDecoration:'none',fontFamily:'JetBrains Mono,monospace'}}>/broker/login</a></div>
-      <div style={{fontSize:12,color:'#0f766e',marginBottom:12}}>Merchant website login URL (testing): <a href="/merchant/login" style={{color:'#0f766e',textDecoration:'none',fontFamily:'JetBrains Mono,monospace'}}>/merchant/login</a></div>
-      <div style={{border:'1px solid #e5e7eb',borderRadius:10,overflow:'hidden'}}>
-        {rows.map((r,i)=>(
-          <div key={r.label} style={{display:'grid',gridTemplateColumns:'220px 120px 1fr',gap:10,alignItems:'center',padding:'10px 12px',borderBottom:i<rows.length-1?'1px solid #f1f4f9':'none',background:i%2===0?'#fff':'#fcfcfd'}}>
-            <div style={{fontSize:12,fontWeight:600}}>{r.label}</div>
-            <div>
-              <span style={{fontSize:10,fontWeight:700,borderRadius:20,padding:'2px 8px',fontFamily:'JetBrains Mono,monospace',background:r.status==='configured'?'rgba(22,163,74,.1)':'rgba(245,158,11,.12)',color:r.status==='configured'?'#16a34a':'#b45309',border:'1px solid '+(r.status==='configured'?'rgba(22,163,74,.2)':'rgba(245,158,11,.25)')}}>
-                {r.status==='configured'?'CONFIGURED':'PENDING'}
-              </span>
-            </div>
-            <div style={{fontSize:12,color:'#6b7280'}}>{r.needed}</div>
+      <div style={{fontSize:12,color:'#6b7280',marginBottom:12,lineHeight:1.55}}>
+        Each row is <strong>configured</strong> only when the env vars this app actually reads are present in Vercel (or <code>.env.local</code>). If something is connected but still shows pending, the variable name likely does not match what the code expects — see the hint in the right column.
+      </div>
+      <div style={{fontSize:12,color:'#4f46e5',marginBottom:6}}>Broker login (testing): <a href="/broker/login" style={{color:'#4f46e5',textDecoration:'none',fontFamily:'JetBrains Mono,monospace'}}>/broker/login</a></div>
+      <div style={{fontSize:12,color:'#0f766e',marginBottom:14}}>Merchant login (testing): <a href="/merchant/login" style={{color:'#0f766e',textDecoration:'none',fontFamily:'JetBrains Mono,monospace'}}>/merchant/login</a></div>
+      {!rows.length&&(
+        <div style={{padding:16,background:'#fef2f2',border:'1px solid #fecaca',borderRadius:10,fontSize:13,color:'#991b1b'}}>Could not load integration status. Open browser devtools → Network → <code>/api/integrations/status</code>.</div>
+      )}
+      {sections.map(cat=>(
+        <div key={cat} style={{marginBottom:16}}>
+          <div style={{fontSize:10,color:'#9ca3af',textTransform:'uppercase',letterSpacing:'1px',fontFamily:'JetBrains Mono,monospace',fontWeight:600,marginBottom:8}}>{cat}</div>
+          <div style={{border:'1px solid #e5e7eb',borderRadius:10,overflow:'hidden'}}>
+            {byCat[cat].map((r,i,arr)=>{
+              const b=badge(r.status)
+              return(
+                <div key={r.key||r.label} style={{display:'grid',gridTemplateColumns:'minmax(160px,1fr) 110px minmax(200px,1.2fr)',gap:10,alignItems:'center',padding:'10px 12px',borderBottom:i<arr.length-1?'1px solid #f1f4f9':'none',background:i%2===0?'#fff':'#fcfcfd'}}>
+                  <div style={{fontSize:12,fontWeight:600}}>{r.label}</div>
+                  <div>
+                    <span style={{fontSize:10,fontWeight:700,borderRadius:20,padding:'2px 8px',fontFamily:'JetBrains Mono,monospace',background:b.background,color:b.color,border:b.border}}>{b.text}</span>
+                  </div>
+                  <div style={{fontSize:12,color:'#6b7280',lineHeight:1.45}}>{r.needed}</div>
+                </div>
+              )
+            })}
           </div>
-        ))}
-      </div>
+        </div>
+      ))}
     </Card>
   )
 }
